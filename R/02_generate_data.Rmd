@@ -1,0 +1,378 @@
+---
+title: "Turbine Collision Risk: Generate Distribution Data"
+description: ""
+author:
+    - name: "Cédric Scherer"
+      url: https://cedricscherer.com
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0003-0645-5666
+    - name: "Christian Voigt"
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0002-0706-3974
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate
+        code_folding: true  
+        toc: true            
+        toc_depth: 2         
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 15, fig.height = 10, 
+                      dev = "ragg_png", res = 1000, retina = 1)
+```
+
+## Preparation 
+
+```{r prep}
+library(tidyverse)
+#library(ggtext)
+#library(spatstat.core)
+#library(patchwork)
+
+ggplot2::theme_set(ggplot2::theme_light(base_size = 10, base_family = "Open Sans"))
+ggplot2::theme_update(
+  panel.grid.major = ggplot2::element_line(size = .3),
+  panel.grid.minor = ggplot2::element_blank(),
+  plot.title = ggplot2::element_text(size = 18),
+  plot.title.position = "plot",
+  plot.margin = ggplot2::margin(rep(25, 4))
+)
+
+## source sunflower funciton for uniform distributions
+source(here::here("R", "src", "util-uniform-distribution.R"))
+```
+
+## Research Question
+
+* Predictive power of the acoustic monitoring
+
+> Is the predictive power of the current acoustic monitoring sufficient enough to estimate the true number of killed bats?
+
+### Predictions
+
+The predictive power of the acoustic monitoring for the extrapolation of the expected number of stroke victims is decreasing
+
+* in case the crossing bats are not distributed uniformly or randomly.
+
+* with increasing length of the rotor blades.
+
+* for species with high-frequency echo calls.
+
+
+### Open Questions
+
+* wie die Dichte skalieren zwischen großen und kleinen Windrädern? 
+  - z.B. von innen nach außen abhängig von relativer oder absoluter Distanz zum Mittelpunkt?
+  
+* globale oder lokale Anzahl an Fledermäusen konstant halten?
+
+## Inputs
+
+We have the following parameters we can vary:
+
+* length of rotor blades (`radius_rotor`) - 60 m versus 33 m
+  + determines area of wind turbine (`area_rotor` as `pi * radius_rotor^2`)
+* proportion of area covered by acoustic monitoring (`proportion_covered`)
+  + determines area of acoustic monitoring (`area_monitored` as `area_rotor * proportion_covered`)
+  + determines radius to detect bars (`radius_monitored` as `sqrt(area_monitored / pi)`)
+* number of bats simulated (`n`)
+  + could be either total (for now) or number monitored (maybe later)
+
+```{r distributions-function}
+generate_distribution <- function(prop_monitored, n_bats, distribution, seed = NULL, 
+                                  uniform_pattern = "planar", bottom_pattern = 1,
+                                  report_counts = FALSE) {
+    
+    if(!is.numeric(prop_monitored) | prop_monitored <= 0 | prop_monitored > .5) stop('prop_monitored should be a number greater than 0 and less than or equal to 0.5.')
+    if(!is.integer(n_bats) | n_bats <= 0) stop('n_bats should be a positive integer number.')
+    if(!distribution %in% c("uniform", "random", "inner", "outer", "bottom")) stop('distribution should be one of ""uniform", "random", "inner", "outer" or "bottom".')
+    if(!is.integer(seed) & !is.null(seed)) stop('seed should be a integer number.')
+    if(distribution %in% c("uniform") & !uniform_pattern %in% c("planar", "geodesic")) stop('uniform_pattern should be either "planar" or "geodesic" in case of an uniform distribution.')
+    if(distribution %in% c("bottom") & bottom_pattern <= 0) stop('bottom_pattern should be a numbe rgreaster than 0.')
+    if (!is.logical(report_counts)) stop('report_counts should be logical, either TRUE or FALSE.')
+  
+    ## INPUT VARIABLES #########################################################
+  
+    ## seed
+    if (is.null(seed)) { 
+        set.seed(as.integer(runif(min = 1, max = 9999999, n = 1)))
+    } else {
+        set.seed(seed)
+    }
+  
+    ## number of points (~ bats)
+    #n_bats <- 500
+  
+    ## % area covered by acoustic monitoring
+    #prop_monitored <- .05 
+  
+    ## DEPENDENT VARIABLES #####################################################
+    
+    ## radius circle (~ length rotor blades)
+    radius_rotor <- 1 
+    ## -> hardcoded since we scale are_monitored and keep area_rotor constant
+    
+    ## radius acoustic monitoring via % area covered + length rotor blades
+    area_rotor <- pi * radius_rotor^2
+    area_monitored <- area_rotor * prop_monitored
+    radius_monitored <- sqrt(area_monitored / pi)
+    
+    ## mask for rotor area
+    circle <- spatstat.geom::disc(
+        radius = radius_rotor, 
+        centre = c(0, 0), 
+        mask = FALSE, 
+        npoly = 5000
+    )
+    
+    ## radius acoustic monitoring via % area covered + length rotor blades
+    area_rotor <- pi * radius_rotor^2
+    area_monitored <- area_rotor * prop_monitored  
+    radius_monitored <- sqrt(2 * area_monitored / pi)
+  
+    ## GENERATE DISTRIBUTION ###################################################
+    if(distribution == "uniform") pp <- sunflower(n_bats, radius_rotor, uniform_pattern)
+    if(distribution == "random")  pp <- spatstat.core::rpoint(n_bats, win = circle)
+    if(distribution == "inner")   pp <- spatstat.core::rpoint(n_bats, function(x,y) {1 - (abs(-x^2 - y^2)) + .01}, win = circle)
+    if(distribution == "outer")   pp <- spatstat.core::rpoint(n_bats, function(x,y) {(abs(x^2 + y^2)) + .01}, win = circle)
+    if(distribution == "bottom")  pp <- spatstat.core::rpoint(n_bats, function(x,y) {100 * exp(-bottom_pattern*y)}, win = circle)
+    
+    ## turn into data frame
+    df_pp <- as.data.frame(pp)
+    
+    ## ESTIMATE BATS INSIDE MONITORING AREA ####################################
+    
+    ## add distance to center
+    df_pp$dist <- df_pp$x^2 + df_pp$y^2
+    df_pp$dist <- ifelse(df_pp$dist > radius_rotor, radius_rotor, df_pp$dist) ## -> again, radius is hardcoded
+    
+    ## estimate points inside acoustic monitoring area
+    ## bats inside the (doubled) circle but not above the center
+    df_pp$monitored <- ifelse(df_pp$dist <= radius_monitored^2 & df_pp$y < 0, TRUE, FALSE)
+    
+    ## check counts
+    if (report_counts == TRUE) print(dplyr::count(df_pp, monitored))
+    
+    ## store inputs
+    if (distribution == "bottom") { 
+        df_pp$distribution <- paste0(distribution, "_", bottom_pattern)
+    } else {
+        df_pp$distribution <- distribution
+    }
+    df_pp$prop_monitored <- prop_monitored
+    df_pp$n_bats <- n_bats
+    df_pp$seed <- seed
+    
+    return(df_pp)
+}
+```
+
+```{r test-distribution-function}
+p <- generate_distribution(prop_monitored = .05, n_bats = 500L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+
+## test seed
+p <- generate_distribution(prop_monitored = .05, n_bats = 500L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n_bats = 500L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+
+## test n_bats and prop_monitored
+p <- generate_distribution(prop_monitored = .5, n_bats = 10000L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()  ## 4L for more TRUE than FALSE
+
+p <- generate_distribution(prop_monitored = .1, n_bats = 10L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+
+
+## test bottom_pattern
+p <- generate_distribution(prop_monitored = .05, n_bats = 500L, seed = 1L, distribution = "bottom", bottom_pattern = 1)
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n_bats = 500L, seed = 1L, distribution = "bottom", bottom_pattern = 10)
+ggplot(p, aes(x, y)) + geom_point()
+
+## test report_counts and outcomes
+p <- generate_distribution(prop_monitored = .5, n_bats = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+p <- generate_distribution(prop_monitored = .25, n_bats = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+p <- generate_distribution(prop_monitored = .1, n_bats = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+```
+
+
+```{r plot-function}
+plot_distributions <- function(data, title = NULL, color = "orange2", save = FALSE, filename = NULL) {
+    if (!is.data.frame(data)) stop('data should be a data frame.')
+    if (unique(!c("x", "y", "monitored") %in% names(data))) stop('data should contain the following columns: "x", "y" and "monitored".') 
+    if (!is.character(title) & !is.null(title)) stop('title should be of type character.') 
+    if (!is.logical(save)) stop('save should be logical, either TRUE or FALSE.')
+    
+    circle <- spatstat.geom::disc(
+        radius = 1,  ## for now hard-coded as in generate_distributions()
+        centre = c(0, 0), 
+        mask = FALSE, 
+        npoly = 5000
+    )
+  
+    if (is.null(title)) title <- paste0(nrow(data), " bats, ", data$distribution, " distribution, ", data$prop_monitored * 100, "% covered")
+    
+    g <- 
+      ggplot2::ggplot(data, ggplot2::aes(x, y)) + 
+      ggplot2::geom_path(data = as.data.frame(circle), color = "grey67", size = 2) + 
+      ggplot2::geom_point(data = dplyr::filter(data, monitored == FALSE), alpha = .7) +
+      ggplot2::geom_point(data = dplyr::filter(data, monitored == TRUE), color = color, alpha = .7) +
+      ggplot2::coord_fixed() +
+      ggplot2::scale_x_continuous(limits = c(-1, 1)) +
+      ggplot2::scale_y_continuous(limits = c(-1, 1)) + 
+      ggplot2::ggtitle(title)
+    
+    print(g)
+    
+    if (save == TRUE) {
+        
+        path <- paste0(getwd(), "/plots")
+        if (!dir.exists(path)) dir.create(path)
+        if (is.null(filename)) { 
+            filepath <- paste0(path, "/plot_distribution_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".pdf")
+        } else{
+            filepath <- paste0(path, "/plot_distribution_", stringr::str_remove(filename, ".pdf"), ".pdf")
+        }
+        
+        ggsave(filepath, width = 6, height = 6, device = cairo_pdf)
+    }
+}
+```
+
+
+```{r test-plot-function}
+p <- generate_distribution(prop_monitored = .5, n_bats = 500L, seed = 333L, 
+                           distribution = "uniform", report_counts = TRUE)
+
+plot_distributions(data = p)
+plot_distributions(data = p, title = "n = 500, uniform, 50% monitored", save = TRUE)
+plot_distributions(data = p, color = "red", save = TRUE, filename = "red_version.pdf")
+```
+
+
+## Generate Several Distributions
+
+```{r function-run-many-simulations}
+generate_all_distributions <- function(runs, prop_monitored, n_bats) {
+  
+  ## generate input table of all parameter combinations
+  input <- expand.grid(
+      distribution = c("uniform", "random", "inner", "outer", "bottom"),
+      prop_monitored = prop_monitored,
+      n_bats = n_bats,
+      seed = as.integer(1:runs)
+  )  
+  
+  # d <- map_dfr(
+  #       runs, 
+  #       ~rep(
+  #           pmap(
+  #               input,
+  #               ~ generate_distribution(distribution = ..1, prop_monitored = ..2, n_bats = ..3, seed = ..4) %>% 
+  #                 group_by()
+  #                 mutate()
+  #           ), 
+  #          .x
+  #      )
+  # )
+  
+  d <- pmap_dfr(
+            input,
+            ~ generate_distribution(distribution = ..1, prop_monitored = ..2, n_bats = ..3, seed = ..4) %>%
+              dplyr::add_count(distribution, prop_monitored, seed, name = "n_bats") %>% 
+              dplyr::count(distribution, prop_monitored, monitored, seed, n_bats ,name = "n_monitored") %>% 
+              dplyr::filter(monitored == TRUE) %>% 
+              dplyr::mutate(prop_bats_monitored = n_monitored / n_bats)
+        )
+  
+  return(d)
+}
+```
+
+
+```{r test-run-simulations}
+test_scenarios <- generate_all_distributions(
+  runs = 100,   ## 500 repetitions per combination, also used for seeding
+  #prop_monitored = c(.2, .4),
+  prop_monitored = seq(.1, .5, by = .1), 
+  n_bats = c(seq(10L, 50L, by = 10L), seq(100L, 500L, by = 50L), seq(600L, 1000L, by = 100L))
+)
+
+g <- test_scenarios %>% 
+  dplyr::group_by(n_bats, prop_monitored, distribution) %>% 
+  dplyr::mutate(diff = prop_monitored - median(prop_bats_monitored),
+                n_bats = factor(n_bats, level = seq(10, 1000, by = 10))) %>% 
+  dplyr::filter(distribution != "uniform") %>% 
+  ggplot2::ggplot(ggplot2::aes(n_bats, prop_bats_monitored)) +
+  ggplot2::geom_hline(aes(yintercept = prop_monitored), color = "grey60", size = .7)  + 
+  ggplot2::scale_color_gradient2(low = "firebrick", mid = "grey40", high = "firebrick", 
+                                 limits = c(-.221, .221), guide = "none") +
+  ggplot2::labs(x = "Number of bats", y = "Proportion of bats monitored") +
+  ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_text(size = 6),
+                 strip.text = ggplot2::element_text(size = 15, face = "bold"))
+
+
+## boxplots
+g_box <- g + ggplot2::geom_boxplot(aes(color = diff), size = .4, outlier.shape = 1, outlier.size = .3)
+
+## fixed y scale, factor levels
+g_box + ggplot2::facet_grid(prop_monitored ~ distribution)
+ggsave("./plots/scenarios_boxplots.pdf", width = 15, height = 8, device = cairo_pdf)
+
+## free y scale, factor levels
+g_box + ggplot2::facet_grid(prop_monitored ~ distribution, scale = "free_y") 
+ggsave("./plots/scenarios_boxplots_free.pdf", width = 15, height = 8, device = cairo_pdf)
+
+## fixed y scale, correct factor gradient
+g_box + ggplot2::facet_grid(prop_monitored ~ distribution) + ggplot2::scale_x_discrete(drop = FALSE)
+ggsave("./plots/scenarios_boxplots_levels.pdf", width = 15, height = 8, device = cairo_pdf)
+
+
+## jitter
+g_sina <- g + ggforce::geom_sina(alpha = .3, width = .3, size = .2, shape = 1, stroke = .3) +
+  ggplot2::stat_summary(fun = median, color = "firebrick", size = .2, shape = 18)
+
+## fixed y scale, factor levels
+g_sina + ggplot2::facet_grid(prop_monitored ~ distribution)
+ggsave("./plots/scenarios_jitter.pdf", width = 15, height = 8, device = cairo_pdf)
+
+g_sina_line <- g_sina + ggplot2::stat_summary(fun = median, geom = "line", aes(group = 1), color = "firebrick")
+
+## fixed y scale, connected medians
+g_sina_line + ggplot2::facet_grid(prop_monitored ~ distribution)
+ggsave("./plots/scenarios_jitter_line.pdf", width = 15, height = 8, device = cairo_pdf)
+
+## fixed y scale, connected medians
+g_sina_line + ggplot2::facet_grid(prop_monitored ~ distribution, scales = "free_y")
+
+ggsave("./plots/scenarios_jitter_free.pdf", width = 15, height = 8, device = cairo_pdf)
+
+## fixed y scale, correct factor gradient, connected medians
+g_sina_line + ggplot2::facet_grid(prop_monitored ~ distribution) + ggplot2::scale_x_discrete(drop = FALSE)
+ggsave("./plots/scenarios_jitter_levels.pdf", width = 15, height = 8, device = cairo_pdf)
+```
+
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+Sys.time()
+sessionInfo()
+```
+
+</details>

@@ -1,0 +1,444 @@
+---
+title: "Turbine Collision Risk: Exploration Circular Distributions and Acoustic Monitoring Area"
+description: ""
+author:
+    - name: "Cédric Scherer"
+      url: https://cedricscherer.com
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0003-0645-5666
+    - name: "Christian Voigt"
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0002-0706-3974
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate
+        code_folding: true  
+        toc: true            
+        toc_depth: 2         
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 15, fig.height = 10, 
+                      dev = "ragg_png", res = 1000, retina = 1)
+```
+
+## Preparation 
+
+```{r prep}
+library(tidyverse)
+library(ggtext)
+library(spatstat.core)
+library(patchwork)
+
+theme_set(theme_light(base_size = 10, base_family = "Open Sans"))
+theme_update(
+  panel.grid.major = element_line(size = .3),
+  panel.grid.minor = element_blank(),
+  plot.title = element_markdown(size = 18),
+  plot.title.position = "plot",
+  plot.margin = margin(rep(25, 4))
+)
+```
+
+## Research Question
+
+* Predictive power of the acoustic monitoring
+
+> Is the predictive power of the current acoustic monitoring sufficient enough to estimate the true number of killed bats?
+
+### Predictions
+
+The predictive power of the acoustic monitoring for the extrapolation of the expected number of stroke victims is decreasing
+
+* in case the crossing bats are not distributed uniformly or randomly.
+
+* with increasing length of the rotor blades.
+
+* for species with high-frequency echo calls.
+
+
+### Open Questions
+
+* wie die Dichte skalieren zwischen großen und kleinen Windrädern? 
+  - z.B. von innen nach außen abhängig von relativer oder absoluter Distanz zum Mittelpunkt?
+  
+* globale oder lokale Anzahl an Fledermäusen konstant halten?
+
+## Inputs
+
+We have the following parameters we can vary:
+
+* length of rotor blades (`radius_rotor`) - 60 m versus 33 m
+  + determines area of wind turbine (`area_rotor` as `pi * radius_rotor^2`)
+* proportion of area covered by acoustic monitoring (`proportion_covered`)
+  + determines area of acoustic monitoring (`area_monitored` as `area_rotor * proportion_covered`)
+  + determines radius to detect bars (`radius_monitored` as `sqrt(area_monitored / pi)`)
+* number of bats simulated (`n`)
+  + could be either total (for now) or number monitored (maybe later)
+
+```{r input-prep}
+## radius circle (~ length rotor blades)
+radius_rotor <- 1 
+
+## % area covered by acoustic monitoring
+proportion_covered <- .05 
+
+## radius acoustic monitoring via % area covered + length rotor blades
+area_rotor <- pi * radius_rotor^2
+area_monitored <- area_rotor * proportion_covered
+radius_monitored <- sqrt(area_monitored / pi)
+
+## mask for window
+circle <- disc(
+  radius = radius_rotor, 
+  centre = c(0, 0), 
+  mask = FALSE, 
+  npoly = 5000
+)
+
+## number of points (~ bats)
+n <- 500
+```
+
+## Circular Distributions
+
+### Generate Point Patterns
+
+```{r point-pattern-generation}
+## source sunflower funciton for uniform distributions
+source(here::here("R", "src", "util-uniform-distribution.R"))
+
+## fix random number genreration to ensure reproducibility
+set.seed(12345)
+
+## random
+pp_rand <- spatstat.core::rpoint(n, win = circle)
+df_rand <- as.data.frame(pp_rand) %>% mutate(dist = x^2 + y^2)
+
+
+## uniform
+pp_unif <- spatstat.core::runifpoint(n, win = circle)
+df_unif <- as.data.frame(pp_unif) %>% mutate(dist = x^2 + y^2)
+
+df_sunf <- sunflower(n, 1, 'planar') %>% mutate(dist = x^2 + y^2)
+
+
+## directional: inner > outer
+pp_inn <- rpoint(n, function(x,y) {1 - (abs(-x^2 - y^2)) + .01}, win = circle)
+df_inn <- as.data.frame(pp_inn) %>% mutate(dist = x^2 + y^2)
+
+
+## directional: outer > inner
+pp_out <- rpoint(n, function(x,y) {(abs(x^2 + y^2)) + .01}, win = circle)
+df_out <- as.data.frame(pp_out) %>% mutate(dist = x^2 + y^2)
+
+
+## directional: bottom > top
+pp_btm1 <- rpoint(n, function(x,y) {100 * exp(-1*y)}, win = circle)
+df_btm1 <- as.data.frame(pp_btm1) %>% mutate(dist = x^2 + y^2)
+
+pp_btm2 <- rpoint(n, function(x,y) {100 * exp(-2*y)}, win = circle)
+df_btm2 <- as.data.frame(pp_btm2) %>% mutate(dist = x^2 + y^2)
+
+pp_btm3 <- rpoint(n, function(x,y) {100 * exp(-3*y)}, win = circle)
+df_btm3 <- as.data.frame(pp_btm3) %>% mutate(dist = x^2 + y^2)
+
+pp_btm4 <- rpoint(n, function(x,y) {100 * exp(-4*y)}, win = circle)
+df_btm4 <- as.data.frame(pp_btm4) %>% mutate(dist = x^2 + y^2)
+
+pp_btm5 <- rpoint(n, function(x,y) {100 * exp(-5*y)}, win = circle)
+df_btm5 <- as.data.frame(pp_btm5) %>% mutate(dist = x^2 + y^2)
+
+pp_btm6 <- rpoint(n, function(x,y) {100 * exp(-6*y)}, win = circle)
+df_btm6 <- as.data.frame(pp_btm6) %>% mutate(dist = x^2 + y^2)
+
+pp_btm7 <- rpoint(n, function(x,y) {100 * exp(-7*y)}, win = circle)
+df_btm7 <- as.data.frame(pp_btm7) %>% mutate(dist = x^2 + y^2)
+
+pp_btm8 <- rpoint(n, function(x,y) {100 * exp(-8*y)}, win = circle)
+df_btm8 <- as.data.frame(pp_btm8) %>% mutate(dist = x^2 + y^2)
+
+pp_btm9 <- rpoint(n, function(x,y) {100 * exp(-9*y)}, win = circle)
+df_btm9 <- as.data.frame(pp_btm9) %>% mutate(dist = x^2 + y^2)
+
+pp_btm10 <- rpoint(n, function(x,y) {100 * exp(-10*y)}, win = circle)
+df_btm10 <- as.data.frame(pp_btm10) %>% mutate(dist = x^2 + y^2)
+```
+
+
+```{r trials, eval=FALSE, include=FALSE}
+### trials
+pp <- spatstat.core::rpoint(n, f = function(x,y) {100 * exp(-5*y)}, win = circle)
+df <- as.data.frame(pp)
+base + geom_point(data = slice(df, 1:n), alpha = .7) + ggtitle("**Random")
+```
+
+
+## Plots Point Patterns
+
+```{r function-plot-distributions}
+plot_dist <- function(data, title, color = TRUE) {
+
+  base <- 
+    ggplot(as.data.frame(circle), aes(x, y)) + 
+    geom_path(color = "black", alpha = .33, size = 2) + 
+    coord_fixed() + 
+    scale_x_continuous(limits = c(-1, 1)) +
+    scale_y_continuous(limits = c(-1, 1))
+  
+  if (isTRUE(color)) {
+     base + 
+      geom_point(data = data, aes(color = dist), alpha = .7) +
+      scale_color_gradient(low = "#003F4C", high = "#B200B2", guide = "none") + 
+      ggtitle(title)
+  } else {
+    base + 
+      geom_point(data = data, alpha = .7) + 
+      ggtitle(title)
+  }
+}
+```
+
+### Distribution Scenarios
+
+```{r plots-distributions, fig.width=15, fig.height=10}
+## no color versions ###########################################################
+
+## random
+gg_rand_nc <- plot_dist(df_rand, "**Random**", color = FALSE)
+
+## uniform
+#gg_unif_nc <- plot_dist(df_unif, "**Uniform** (?)", color = FALSE)
+gg_sunf_nc <- plot_dist(df_sunf, "**Uniform** (sunflower)", color = FALSE)  
+
+## directional: inner > outer
+gg_inn_nc <- plot_dist(df_inn, "**Inner to Outer**", color = FALSE)
+
+## directional: outer > inner
+gg_out_nc <- plot_dist(df_out, "**Outer to Inner**", color = FALSE)               
+
+## directional: bottom > top
+gg_btm1_nc  <- plot_dist(df_btm1,  "**Bottom to Top** (exp(-y))", color = FALSE)
+gg_btm2_nc  <- plot_dist(df_btm2,  "**Bottom to Top** (exp(-2*y))", color = FALSE)
+gg_btm3_nc  <- plot_dist(df_btm3,  "**Bottom to Top** (exp(-3*y))", color = FALSE)
+gg_btm4_nc  <- plot_dist(df_btm4,  "**Bottom to Top** (exp(-4*y))", color = FALSE)
+gg_btm5_nc  <- plot_dist(df_btm5,  "**Bottom to Top** (exp(-5*y))", color = FALSE)
+gg_btm6_nc  <- plot_dist(df_btm6,  "**Bottom to Top** (exp(-6*y))", color = FALSE)
+gg_btm7_nc  <- plot_dist(df_btm7,  "**Bottom to Top** (exp(-7*y))", color = FALSE)
+gg_btm8_nc  <- plot_dist(df_btm8,  "**Bottom to Top** (exp(-8*y))", color = FALSE)
+gg_btm9_nc  <- plot_dist(df_btm9,  "**Bottom to Top** (exp(-9*y))", color = FALSE)
+gg_btm10_nc <- plot_dist(df_btm10, "**Bottom to Top** (exp(-10*y))", color = FALSE)
+
+
+## panel
+(gg_sunf_nc | gg_btm2_nc | gg_inn_nc) / (gg_rand_nc | gg_btm5_nc | gg_out_nc)
+
+ggsave("plots/circular_distributions_nc.png", width = 15, height = 10, dpi = 700)
+```
+
+
+#### Distribution Scenarios Colored by Distance
+
+```{r plots-distributions-color, fig.width=15, fig.height=10}
+## colored versions ############################################################
+
+## random
+gg_rand <- plot_dist(df_rand, "**Random**")
+
+## uniform
+#gg_unif <- plot_dist(df_unif, "**Uniform** (?)")
+gg_sunf <- plot_dist(df_sunf, "**Uniform** (sunflower)")  
+
+## directional: inner > outer
+gg_inn <- plot_dist(df_inn, "**Inner to Outer**")
+
+## directional: outer > inner
+gg_out <- plot_dist(df_out, "**Outer to Inner**")
+
+## directional: bottom > top
+gg_btm1  <- plot_dist(df_btm1,  "**Bottom to Top** (exp(-y))")
+gg_btm2  <- plot_dist(df_btm2,  "**Bottom to Top** (exp(-2*y))")
+gg_btm3  <- plot_dist(df_btm3,  "**Bottom to Top** (exp(-3*y))")
+gg_btm4  <- plot_dist(df_btm4,  "**Bottom to Top** (exp(-4*y))")
+gg_btm5  <- plot_dist(df_btm5,  "**Bottom to Top** (exp(-5*y))")
+gg_btm6  <- plot_dist(df_btm6,  "**Bottom to Top** (exp(-6*y))")
+gg_btm7  <- plot_dist(df_btm7,  "**Bottom to Top** (exp(-7*y))")
+gg_btm8  <- plot_dist(df_btm8,  "**Bottom to Top** (exp(-8*y))")
+gg_btm9  <- plot_dist(df_btm9,  "**Bottom to Top** (exp(-9*y))")
+gg_btm10 <- plot_dist(df_btm10, "**Bottom to Top** (exp(-10*y))")
+
+
+## panel
+(gg_sunf | gg_btm2 | gg_inn) / (gg_rand | gg_btm5 | gg_out)
+
+ggsave("plots/circular_distributions.png", width = 15, height = 10, dpi = 700)
+```
+
+
+
+### Variations of Bottom to Top Distributions
+
+```{r plots-distributions-bottom-top, fig.width=24, fig.height=10}
+## panel bottom > top
+(gg_btm1_nc | gg_btm2_nc | gg_btm3_nc | gg_btm4_nc | gg_btm5_nc) / (gg_btm6_nc | gg_btm7_nc | gg_btm8_nc | gg_btm9_nc | gg_btm10_nc)
+
+ggsave("plots/circular_distributions_btms_nc.png", width = 24, height = 10, dpi = 700)
+```
+
+
+#### Distribution Scenarios Colored by Distance
+
+```{r plots-distributions-color-bottom-top, fig.width=24, fig.height=10}
+## panel bottom > top
+(gg_btm1 | gg_btm2 | gg_btm3 | gg_btm4 | gg_btm5) / (gg_btm6 | gg_btm7 | gg_btm8 | gg_btm9 | gg_btm10)
+
+ggsave("plots/circular_distributions_btms.png", width = 24, height = 10, dpi = 700)
+```
+
+
+## Plots Proportion Monitored
+
+```{r function-plot-monitored-area}
+plot_monitoring <- function(gg, data, circle_monitored) {
+  gg + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(data, dist < radius_monitored^2), color = "orange2")
+}
+```
+
+```{r function-visualize-monitoring-all-distributions}
+plot_monitoring_all <- function(proportion_covered, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5) {
+  
+  ## radius acoustic monitoring via % area covered + length rotor blades
+  area_rotor <- pi * radius_rotor^2
+  area_monitored <- area_rotor * proportion_covered * 2   
+  ## times 2 because we only use the lower half of the circle = half of the area later
+  radius_monitored <- sqrt(area_monitored / pi)
+  
+  circle_monitored <- disc(
+    radius = radius_monitored,
+    centre = c(0, 0), 
+    mask = FALSE, 
+    npoly = 5000
+  )
+  
+  circle_half_monited <-
+    as.data.frame(circle_monitored) %>% 
+    filter(y <= 0)
+    
+  ## random
+  gg_rand_r <- gg_rand_nc + 
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_rand, dist < radius_monitored^2 & y <= 0), color = "orange2")
+  
+  ## uniform
+  # gg_unif_r <- gg_unif_nc + 
+  #   geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+  #   geom_point(data = filter(df_unif, dist < radius_monitored^2), color = "orange2")
+  
+  gg_sunf_r <- gg_sunf_nc + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_sunf, dist < radius_monitored^2), color = "orange2")
+
+  ## directional: inner > outer
+  gg_inn_r <- gg_inn_nc + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_inn, dist < radius_monitored^2), color = "orange2")
+  
+  ## directional: outer > inner
+  gg_out_r <- gg_out_nc + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_out, dist < radius_monitored^2), color = "orange2")
+  
+  
+  ## bottom > top
+  gg_btm2_r <- gg_btm2_nc + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_btm2, dist < radius_monitored^2), color = "orange2")
+  
+  gg_btm5_r <- gg_btm5_nc + 
+    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_btm5, dist < radius_monitored^2), color = "orange2")
+  
+  
+  ## panel
+  p <- (gg_sunf_r | gg_btm2_r | gg_inn_r) / (gg_rand_r | gg_btm5_r | gg_out_r)
+}
+```
+
+
+### Monitoring Covers 50%
+
+```{r panel-monitored-50, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .5, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_50.png", width = 15, height = 10, dpi = 700)
+```
+
+
+### Monitoring Covers 40%
+
+```{r panel-monitored-40, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .4, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_40.png", width = 15, height = 10, dpi = 700)
+```
+
+
+### Monitoring Covers 30%
+
+```{r panel-monitored-30, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .3, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_30.png", width = 15, height = 10, dpi = 700)
+```
+
+
+### Monitoring Covers 20%
+
+```{r panel-monitored-20, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .2, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_20.png", width = 15, height = 10, dpi = 700)
+```
+
+
+### Monitoring Covers 10%
+
+```{r panel-monitored-10, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .1, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_10.png", width = 15, height = 10, dpi = 700)
+```
+
+
+### Monitoring Covers 5%
+
+```{r panel-monitored-5, fig.width=15, fig.height=15}
+(panel_monitored <- plot_monitoring_all(
+  proportion_covered = .05, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
+))
+ggsave("plots/circular_distributions_area_monitored_05.png", width = 15, height = 10, dpi = 700)
+```
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+Sys.time()
+sessionInfo()
+```
+
+</details>
