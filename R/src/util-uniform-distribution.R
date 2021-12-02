@@ -1,8 +1,15 @@
-
-## Uniform Sunflower Function ##################################################
 ## from StackOverflow:
 ## stackoverflow.com/questions/28567166/uniformly-distribute-x-points-inside-a-circle
 
+
+#' Create uniform circular sunflower distribution
+#'
+#' @param n Number of points.
+#' @param alpha A number indicating the evenness.
+#' @param geometry A string indicating the pattern (planar or geodesic)
+#' @return A data frame containinf the 2D position of n points.
+#' @examples
+#' sunflower(n = 500, alpha =2, geometry = 'planar')
 sunflower <- function(n, alpha = 2, geometry = c('planar','geodesic')) {
   b <- round(alpha*sqrt(n))  # number of boundary points
   phi <- (sqrt(5)+1)/2  # golden ratio
@@ -16,6 +23,13 @@ sunflower <- function(n, alpha = 2, geometry = c('planar','geodesic')) {
   )
 }
 
+
+#' Calculate radius for sunflower function
+#'
+#' @param n Number of points.
+#' @param k Index.
+#' @param b golde nratio parameter (?)
+#' @return Radius from the center for a given point
 radius <- function(k,n,b) {
   ifelse(
     k > n-b,
@@ -23,6 +37,3 @@ radius <- function(k,n,b) {
     sqrt(k-1/2) / sqrt(n-(b+1)/2)
   )
 }
-
-# example:
-#sunflower(500, 2, 'planar')
