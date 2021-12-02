@@ -308,7 +308,10 @@ test_scenarios <- generate_all_distributions(
   prop_monitored = seq(.1, .5, by = .1), 
   n_bats = c(seq(10L, 50L, by = 10L), seq(100L, 500L, by = 50L), seq(600L, 1000L, by = 100L))
 )
+```
 
+
+```{r plot-simulation-outcomes}
 g <- test_scenarios %>% 
   dplyr::group_by(n_bats, prop_monitored, distribution) %>% 
   dplyr::mutate(diff = prop_monitored - median(prop_bats_monitored),
