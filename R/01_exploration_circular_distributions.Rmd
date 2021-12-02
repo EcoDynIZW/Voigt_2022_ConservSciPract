@@ -339,32 +339,32 @@ plot_monitoring_all <- function(proportion_covered, df_rand, df_sunf, df_inn, df
   
   ## uniform
   # gg_unif_r <- gg_unif_nc + 
-  #   geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-  #   geom_point(data = filter(df_unif, dist < radius_monitored^2), color = "orange2")
+  #   geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+  #   geom_point(data = filter(df_unif, dist < radius_monitored^2 & y <= 0), color = "orange2")
   
   gg_sunf_r <- gg_sunf_nc + 
-    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-    geom_point(data = filter(df_sunf, dist < radius_monitored^2), color = "orange2")
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_sunf, dist < radius_monitored^2 & y <= 0), color = "orange2")
 
   ## directional: inner > outer
   gg_inn_r <- gg_inn_nc + 
-    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-    geom_point(data = filter(df_inn, dist < radius_monitored^2), color = "orange2")
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_inn, dist < radius_monitored^2 & y <= 0), color = "orange2")
   
   ## directional: outer > inner
   gg_out_r <- gg_out_nc + 
-    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-    geom_point(data = filter(df_out, dist < radius_monitored^2), color = "orange2")
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_out, dist < radius_monitored^2 & y <= 0), color = "orange2")
   
   
   ## bottom > top
   gg_btm2_r <- gg_btm2_nc + 
-    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-    geom_point(data = filter(df_btm2, dist < radius_monitored^2), color = "orange2")
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_btm2, dist < radius_monitored^2 & y <= 0), color = "orange2")
   
   gg_btm5_r <- gg_btm5_nc + 
-    geom_path(data = as.data.frame(circle_monitored), color = "orange2", alpha = .2, size = 1.5) +
-    geom_point(data = filter(df_btm5, dist < radius_monitored^2), color = "orange2")
+    geom_path(data = circle_half_monited, color = "orange2", alpha = .2, size = 1.5) +
+    geom_point(data = filter(df_btm5, dist < radius_monitored^2 & y <= 0), color = "orange2")
   
   
   ## panel
