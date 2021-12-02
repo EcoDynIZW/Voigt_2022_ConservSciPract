@@ -7,7 +7,7 @@
 #' @param n Number of points.
 #' @param alpha A number indicating the evenness.
 #' @param geometry A string indicating the pattern (planar or geodesic)
-#' @return A data frame containinf the 2D position of n points.
+#' @return A data frame containing the 2D position of n points.
 #' @examples
 #' sunflower(n = 500, alpha =2, geometry = 'planar')
 sunflower <- function(n, alpha = 2, geometry = c('planar','geodesic')) {
@@ -28,7 +28,7 @@ sunflower <- function(n, alpha = 2, geometry = c('planar','geodesic')) {
 #'
 #' @param n Number of points.
 #' @param k Index.
-#' @param b golde nratio parameter (?)
+#' @param b Golden ratio parameter (?)
 #' @return Radius from the center for a given point
 radius <- function(k,n,b) {
   ifelse(
