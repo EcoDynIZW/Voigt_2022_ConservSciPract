@@ -1,0 +1,160 @@
+---
+title: "Turbine Collision Risk: Test Functions"
+description: ""
+author:
+    - name: "Cédric Scherer"
+      url: https://cedricscherer.com
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0003-0645-5666
+    - name: "Christian Voigt"
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0002-0706-3974
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate
+        code_folding: false  
+        toc: true            
+        toc_depth: 2         
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 15, fig.height = 10,
+                      dev = "ragg_png", res = 1000, retina = 1)
+```
+
+## Preparation
+
+```{r prep}
+library(tidyverse)
+
+ggplot2::theme_set(ggplot2::theme_light(base_size = 10, base_family = "Open Sans"))
+ggplot2::theme_update(
+  panel.grid.major = ggplot2::element_line(size = .3),
+  panel.grid.minor = ggplot2::element_blank(),
+  plot.title = ggplot2::element_text(size = 18),
+  plot.title.position = "plot",
+  plot.margin = ggplot2::margin(rep(25, 4))
+)
+
+## source functions to generate and visualize distributions
+source(here::here("R", "src", "generate-distributions.R"))
+```
+
+
+## Test `generate_distribution()`
+
+```{r test-distribution-function, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .05, n = 500L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+```
+
+
+### Test `report_counts` and outcomes
+
+```{r test-distribution-function-reports, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .5, n = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+p <- generate_distribution(prop_monitored = .25, n = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+p <- generate_distribution(prop_monitored = .1, n = 10000L, seed = 1L, distribution = "random", report_counts = TRUE)
+```
+
+
+### Test `seed`
+
+```{r test-distribution-function-seed, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+```
+
+
+### Test `n` and `prop_monitored`
+
+```{r test-distribution-function-n-prop, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .5, n = 10000L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()  ## 4L for more TRUE than FALSE
+
+p <- generate_distribution(prop_monitored = .1, n = 10L, seed = 1L, distribution = "random")
+ggplot(p, aes(x, y)) + geom_point()
+```
+
+
+### Test `skewness`
+
+```{r test-distribution-function-skewness, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "bottom", skewness = 1)
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "bottom", skewness = 10)
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "top", skewness = 1)
+ggplot(p, aes(x, y)) + geom_point()
+
+p <- generate_distribution(prop_monitored = .05, n = 500L, seed = 1L, distribution = "top", skewness = 10)
+ggplot(p, aes(x, y)) + geom_point()
+```
+
+
+## Test `plot_distribution()`
+
+```{r test-plot-function, fig.width=7, fig.height=7}
+p <- generate_distribution(prop_monitored = .5, n = 500L, seed = 333L,
+                           distribution = "uniform", report_counts = TRUE)
+
+plot_distribution(data = p)
+plot_distribution(data = p, title = "n = 500, uniform, 50% monitored", save = TRUE)
+plot_distribution(data = p, color = "red", save = TRUE, filename = "red_version.pdf")
+```
+
+
+## Test `simulate_multiple_distributions()`
+
+```{r test-run-simulations, fig.width=15, fig.height=6.5, layout="l-screen-inset"}
+test_scenarios <- simulate_multiple_distributions(
+  runs = 3,
+  prop_monitored = c(.04, .23),
+  n = seq(100L, 300L,  by = 100L),
+  skewness = c(1, 5)
+)
+
+test_scenarios %>%
+  dplyr::group_by(n, prop_monitored, distribution) %>%
+  dplyr::mutate(
+    diff = prop_monitored - prop_n_monitored,
+    n = factor(n, level = seq(10, 1000, by = 10)),
+    med = median(prop_n_monitored)
+  ) %>%
+  dplyr::filter(distribution != "uniform") %>%
+  ggplot2::ggplot(ggplot2::aes(n, prop_n_monitored)) +
+  ggplot2::geom_hline(aes(yintercept = prop_monitored), color = "grey60", size = .7)  +
+  ggplot2::stat_summary(fun = median, size = 4, shape = 3, geom = "point", color = "black") + 
+  ggplot2::geom_point(aes(color = diff), size = 2, alpha = .7) +
+  ggplot2::facet_grid(prop_monitored ~ distribution) +
+  ggplot2::scale_color_gradient2(low = "firebrick", mid = "grey40", high = "firebrick",
+                                 limits = c(-.221, .221), guide = "none") +
+  ggplot2::labs(x = "Number of transits", y = "Proportion of bats monitored") +
+  ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
+                 axis.text.x = ggplot2::element_text(size = 6),
+                 strip.text = ggplot2::element_text(size = 15, face = "bold"))
+```
+
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+Sys.time()
+sessionInfo()
+```
+
+</details>
