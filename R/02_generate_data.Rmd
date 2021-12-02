@@ -87,15 +87,15 @@ We have the following parameters we can vary:
 
 ```{r distributions-function}
 generate_distribution <- function(prop_monitored, n_bats, distribution, seed = NULL, 
-                                  uniform_pattern = "planar", bottom_pattern = 1,
+                                  uniform_pattern = "planar", dir_pattern = 1,
                                   report_counts = FALSE) {
     
     if(!is.numeric(prop_monitored) | prop_monitored <= 0 | prop_monitored > .5) stop('prop_monitored should be a number greater than 0 and less than or equal to 0.5.')
     if(!is.integer(n_bats) | n_bats <= 0) stop('n_bats should be a positive integer number.')
-    if(!distribution %in% c("uniform", "random", "inner", "outer", "bottom")) stop('distribution should be one of ""uniform", "random", "inner", "outer" or "bottom".')
+    if(!distribution %in% c("uniform", "random", "inner", "outer", "bottom", "top")) stop('distribution should be one of ""uniform", "random", "inner", "outer", "bottom" or "top".')
     if(!is.integer(seed) & !is.null(seed)) stop('seed should be a integer number.')
     if(distribution %in% c("uniform") & !uniform_pattern %in% c("planar", "geodesic")) stop('uniform_pattern should be either "planar" or "geodesic" in case of an uniform distribution.')
-    if(distribution %in% c("bottom") & bottom_pattern <= 0) stop('bottom_pattern should be a numbe rgreaster than 0.')
+    if(distribution %in% c("bottom", "top") & dir_pattern <= 0) stop('dir_pattern should be a number greater than 0.')
     if (!is.logical(report_counts)) stop('report_counts should be logical, either TRUE or FALSE.')
   
     ## INPUT VARIABLES #########################################################
@@ -142,7 +142,8 @@ generate_distribution <- function(prop_monitored, n_bats, distribution, seed = N
     if(distribution == "random")  pp <- spatstat.core::rpoint(n_bats, win = circle)
     if(distribution == "inner")   pp <- spatstat.core::rpoint(n_bats, function(x,y) {1 - (abs(-x^2 - y^2)) + .01}, win = circle)
     if(distribution == "outer")   pp <- spatstat.core::rpoint(n_bats, function(x,y) {(abs(x^2 + y^2)) + .01}, win = circle)
-    if(distribution == "bottom")  pp <- spatstat.core::rpoint(n_bats, function(x,y) {100 * exp(-bottom_pattern*y)}, win = circle)
+    if(distribution == "bottom")  pp <- spatstat.core::rpoint(n_bats, function(x,y) {100 * exp(-dir_pattern*y)}, win = circle)
+    if(distribution == "top")     pp <- spatstat.core::rpoint(n_bats, function(x,y) {100 * exp(dir_pattern*y)}, win = circle)
     
     ## turn into data frame
     df_pp <- as.data.frame(pp)
@@ -273,19 +274,6 @@ generate_all_distributions <- function(runs, prop_monitored, n_bats) {
       n_bats = n_bats,
       seed = as.integer(1:runs)
   )  
-  
-  # d <- map_dfr(
-  #       runs, 
-  #       ~rep(
-  #           pmap(
-  #               input,
-  #               ~ generate_distribution(distribution = ..1, prop_monitored = ..2, n_bats = ..3, seed = ..4) %>% 
-  #                 group_by()
-  #                 mutate()
-  #           ), 
-  #          .x
-  #      )
-  # )
   
   d <- pmap_dfr(
             input,
