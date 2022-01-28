@@ -6,7 +6,7 @@
 #' @param geometry A string indicating the pattern (planar or geodesic)
 #' @return A data frame containing the 2D position of n points.
 #' @examples
-#' sunflower(n = 500, alpha =2, geometry = 'planar')
+#' sunflower(n = 500, alpha = 2, geometry = 'planar')
 sunflower <- function(n, alpha = 2, geometry = c('planar','geodesic')) {
   b <- round(alpha*sqrt(n))  # number of boundary points
   phi <- (sqrt(5)+1)/2  # golden ratio
@@ -52,6 +52,7 @@ radius <- function(k,n,b) {
 #'                 distributions "top" and "bottom". The greater the number,
 #'                 the higher the clustering of points towards the top and
 #'                 bottom of the circle, respectively.
+#' @param var A logical input indicating if fatalities are drawn with variation
 #' @param report_counts A logical input if the function should print the counts
 #'                      of monitored and non-monitored transits.
 #' @return A data frame containing the 2D position of n points.
@@ -59,14 +60,14 @@ radius <- function(k,n,b) {
 #' generate_distribution(prop_monitored = .05, n = 500L, distribution = "uniform")
 #' generate_distribution(prop_monitored = .05, n = 500L, distribution = "top", skeweness = 5)
 generate_distribution <- function(prop_monitored, n, distribution, seed = NULL,
-                                  pattern = "planar", skewness = 1, report_counts = FALSE) {
+                                  pattern = "planar", skewness = 1, var = TRUE, report_counts = FALSE) {
 
   if(!is.numeric(prop_monitored) | prop_monitored <= 0 | prop_monitored > .5) stop('prop_monitored should be a number greater than 0 and less than or equal to 0.5.')
   if(!is.integer(n) | n <= 0) stop('n should be a positive integer number.')
-  if(!distribution %in% c("uniform", "random", "inner", "outer", "top", "bottom")) stop('distribution should be one of ""uniform", "random", "inner", "outer", "top" or "bottom".')
+  if(!distribution %in% c("uniform", "random", "inner", "outer", "top", "bottom")) stop('distribution should be one of uniform", "random", "inner", "outer", "top" or "bottom".')
   if(!is.integer(seed) & !is.null(seed)) stop('seed should be a integer number.')
   if(distribution %in% c("uniform") & !pattern %in% c("planar", "geodesic")) stop('pattern should be either "planar" or "geodesic" in case of an uniform distribution.')
-  if(distribution %in% c("bottom", "top") & skewness <= 0) stop('skewness should be a number greater than 0.')
+  if(distribution %in% c("bottom", "top", "inner", "outer") & skewness < 0) stop('skewness should be a number greater than 0.')
   if (!is.logical(report_counts)) stop('report_counts should be logical, either TRUE or FALSE.')
 
   ## INPUT VARIABLES #########################################################
@@ -105,8 +106,8 @@ generate_distribution <- function(prop_monitored, n, distribution, seed = NULL,
   ## GENERATE DISTRIBUTION ###################################################
   if(distribution == "uniform") pp <- sunflower(n, radius_rotor, pattern)
   if(distribution == "random")  pp <- spatstat.core::rpoint(n, win = circle)
-  if(distribution == "inner")   pp <- spatstat.core::rpoint(n, function(x,y) {1 - (abs(-x^2 - y^2)) + .01}, win = circle)
-  if(distribution == "outer")   pp <- spatstat.core::rpoint(n, function(x,y) {(abs(x^2 + y^2)) + .01}, win = circle)
+  if(distribution == "inner")   pp <- spatstat.core::rpoint(n, function(x,y) {(1 - (abs(x^2 + y^2)) + .01)^skewness}, win = circle)
+  if(distribution == "outer")   pp <- spatstat.core::rpoint(n, function(x,y) {((abs(x^2 + y^2)) + .01)^skewness}, win = circle)
   if(distribution == "bottom")  pp <- spatstat.core::rpoint(n, function(x,y) {100 * exp(-skewness*y)}, win = circle)
   if(distribution == "top")     pp <- spatstat.core::rpoint(n, function(x,y) {100 * exp(skewness*y)}, win = circle)
 
@@ -126,8 +127,24 @@ generate_distribution <- function(prop_monitored, n, distribution, seed = NULL,
   ## check counts
   if (report_counts == TRUE) print(dplyr::count(df_pp, monitored))
 
+  ## sample fatalities
+  df_pp$id <- 1:n
+  #n_monitored <- nrow(dplyr::filter(df_pp, monitored == TRUE))
+  n_monitored <- n
+
+  ## sample bat pass id that get hit
+  if (var == TRUE) {
+    corr_fatality <- (runif(1, 0, 1) + runif(1, 0, 1)) / 100
+  } else {
+    corr_fatality <- .01
+  }
+
+  n_fatality <- round(n * corr_fatality)
+  id_fatality <- sample(1:n, size = n_fatality)
+  df_pp$fatality <- ifelse(df_pp$id %in% id_fatality, TRUE, FALSE)
+
   ## store inputs
-  if (distribution %in% c("bottom", "top")) {
+  if (distribution %in% c("bottom", "top", "inner", "outer")) {
     df_pp$distribution <- paste0(distribution, "_", skewness)
   } else {
     df_pp$distribution <- distribution
@@ -157,8 +174,9 @@ generate_distribution <- function(prop_monitored, n, distribution, seed = NULL,
 simulate_multiple_distributions <- function(runs, prop_monitored, n, skewness) {
 
   ## generate input table of all parameter combinations
+  ## no skewness values for uniform and random
   input <- expand.grid(
-    distribution = c("uniform", "random", "inner", "outer"),
+    distribution = c("uniform", "random"),
     prop_monitored = prop_monitored,
     n = n,
     skewness = NA,
@@ -166,7 +184,7 @@ simulate_multiple_distributions <- function(runs, prop_monitored, n, skewness) {
   )
 
   input_skewed <- expand.grid(
-    distribution = c("top", "bottom"),
+    distribution = c("top", "bottom", "inner", "outer"),
     prop_monitored = prop_monitored,
     n = n,
     skewness = skewness,
@@ -179,8 +197,13 @@ simulate_multiple_distributions <- function(runs, prop_monitored, n, skewness) {
     input,
     ~ generate_distribution(distribution = ..1, prop_monitored = ..2, n = ..3, skewness = ..4, seed = ..5) %>%
       dplyr::add_count(distribution, prop_monitored, seed, name = "n") %>%
-      dplyr::count(distribution, prop_monitored, monitored, seed, n ,name = "n_monitored") %>%
-      dplyr::filter(monitored == TRUE) %>%
+      dplyr::group_by(distribution, prop_monitored, seed, n) %>%
+      dplyr::summarize(
+         n_monitored = sum(monitored),
+         n_fatalities = sum(fatality),
+         n_fatalities_monitored = sum(fatality[which(monitored == TRUE)]),
+         .groups = "drop"
+      ) %>%
       dplyr::mutate(prop_n_monitored = n_monitored / n)
   )
 
@@ -198,6 +221,7 @@ simulate_multiple_distributions <- function(runs, prop_monitored, n, skewness) {
 #'             as well as a logical column called "monitored".
 #' @param title A strings used as title (optional).
 #' @param color Color used to visualize transits within the monitoring area (optional).
+#' @param print Logical. Should the plot be printed?
 #' @param save Logical. Should the plot be saved to disc? All plots are stored
 #'             under "./plots". If no file name (see "filename") is provided,
 #'             the plot is saved as "plot_distribution_{date-time}".
@@ -205,7 +229,7 @@ simulate_multiple_distributions <- function(runs, prop_monitored, n, skewness) {
 #' @return A ggplot.
 #' @examples
 #' plot_distribution(generate_distribution(prop_monitored = .05, n = 500L, distribution = "uniform"))
-plot_distribution <- function(data, title = NULL, color = "orange2", save = FALSE, filename = NULL) {
+plot_distribution <- function(data, title = NULL, color = "orange2", print = TRUE, save = FALSE, filename = NULL) {
   if (!is.data.frame(data)) stop('data should be a data frame.')
   if (unique(!c("x", "y", "monitored") %in% names(data))) stop('data should contain the following columns: "x", "y" and "monitored".')
   if (!is.character(title) & !is.null(title)) stop('title should be of type character.')
@@ -230,7 +254,7 @@ plot_distribution <- function(data, title = NULL, color = "orange2", save = FALS
     ggplot2::scale_y_continuous(limits = c(-1, 1)) +
     ggplot2::ggtitle(title)
 
-  print(g)
+ if (print == TRUE) print(g)
 
   if (save == TRUE) {
 
@@ -244,4 +268,6 @@ plot_distribution <- function(data, title = NULL, color = "orange2", save = FALS
 
     ggsave(filepath, width = 6, height = 6, device = cairo_pdf)
   }
+
+  return(g)
 }

@@ -111,8 +111,8 @@ n <- 500
 ### Generate Point Patterns
 
 ```{r point-pattern-generation}
-## source sunflower funciton for uniform distributions
-source(here::here("R", "src", "util-uniform-distribution.R"))
+## source sunflower function for uniform distributions
+source(here::here("R", "src", "generate-distributions.R"))
 
 ## fix random number genreration to ensure reproducibility
 set.seed(12345)
@@ -169,14 +169,6 @@ df_btm9 <- as.data.frame(pp_btm9) %>% mutate(dist = x^2 + y^2)
 
 pp_btm10 <- rpoint(n, function(x,y) {100 * exp(-10*y)}, win = circle)
 df_btm10 <- as.data.frame(pp_btm10) %>% mutate(dist = x^2 + y^2)
-```
-
-
-```{r trials, eval=FALSE, include=FALSE}
-### trials
-pp <- spatstat.core::rpoint(n, f = function(x,y) {100 * exp(-5*y)}, win = circle)
-df <- as.data.frame(pp)
-base + geom_point(data = slice(df, 1:n), alpha = .7) + ggtitle("**Random")
 ```
 
 
@@ -239,7 +231,7 @@ gg_btm10_nc <- plot_dist(df_btm10, "**Bottom to Top** (exp(-10*y))", color = FAL
 ## panel
 (gg_sunf_nc | gg_btm2_nc | gg_inn_nc) / (gg_rand_nc | gg_btm5_nc | gg_out_nc)
 
-ggsave("plots/circular_distributions_nc.png", width = 15, height = 10, dpi = 700)
+ggsave(here::here("plots", "circular_distributions_nc.png"), width = 15, height = 10, dpi = 700)
 ```
 
 

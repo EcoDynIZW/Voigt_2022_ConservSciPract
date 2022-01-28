@@ -1,0 +1,416 @@
+---
+title: "Turbine Collision Risk: Overview Plots Distributions"
+description: ""
+author:
+    - name: "Cédric Scherer"
+      url: https://cedricscherer.com
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0003-0645-5666
+    - name: "Christian Voigt"
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0002-0706-3974
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate
+        code_folding: true  
+        toc: true            
+        toc_depth: 2         
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 15, fig.height = 10,
+                      dev = "ragg_png", res = 1000, retina = 1)
+```
+
+## Preparation
+
+```{r prep}
+library(tidyverse)
+library(here)
+library(ggtext)
+library(spatstat.core)
+library(colorspace)
+library(here)
+library(patchwork)
+
+theme_set(theme_void(base_size = 18, base_family = "Open Sans"))
+theme_update(
+  plot.title = element_markdown(hjust = .5, face = "bold"),
+  plot.title.position = "plot",
+  plot.margin = margin(rep(10, 4))
+)
+
+## source funcrions to generate distributions of bat passes
+source(here("R", "src", "generate-distributions.R"))
+```
+
+## Research Question
+
+* Predictive power of the acoustic monitoring
+
+> Is the predictive power of the current acoustic monitoring sufficient enough to estimate the true number of killed bats?
+
+### Predictions
+
+The predictive power of the acoustic monitoring for the extrapolation of the expected number of stroke victims is decreasing
+
+* in case the crossing bats are not distributed uniformly or randomly.
+
+* with increasing length of the rotor blades.
+
+* for species with high-frequency echo calls.
+
+
+### Open Questions
+
+* wie die Dichte skalieren zwischen großen und kleinen Windrädern?
+  - z.B. von innen nach außen abhängig von relativer oder absoluter Distanz zum Mittelpunkt?
+
+* globale oder lokale Anzahl an Fledermäusen konstant halten?
+
+## Inputs
+
+We have the following parameters we can vary:
+
+* length of rotor blades (`radius_rotor`) - 60 m versus 33 m
++ determines area of wind turbine (`area_rotor` as `pi * radius_rotor^2`)
+* proportion of area covered by acoustic monitoring (`proportion_covered`)
++ determines area of acoustic monitoring (`area_monitored` as `area_rotor * proportion_covered`)
++ determines radius to detect bars (`radius_monitored` as `sqrt(area_monitored / pi)`)
+* number of bats simulated (`n`)
++ could be either total (for now) or number monitored (maybe later)
+
+
+
+```{r function-plot-distributions}
+plot_dist <- function(data, title = NULL, color = NULL, shape = NULL, size = 1) {
+
+  df_rotor <- as.data.frame(
+    disc(radius = 1, centre = c(0, 0),  mask = FALSE, npoly = 5000)
+  )
+  
+  area_monitored <- pi * unique(data$prop_monitored) * 2   ## pi *1^2 -> area 
+  ## times 2 because we only use the lower half of the circle = half of the area later
+  radius_monitored <- sqrt(area_monitored / pi)
+  
+  df_monitored <- 
+    as.data.frame(
+      disc(radius = radius_monitored, centre = c(0, 0), mask = FALSE,  npoly = 5000)
+    ) %>% 
+    filter(y <= 0)
+  
+  base <- 
+    ggplot(df_rotor, aes(x, y)) + 
+    geom_path(color = "black", alpha = .33, size = 2.5) + 
+    coord_fixed() + 
+    scale_x_continuous(limits = c(-1, 1)) +
+    scale_y_continuous(limits = c(-1, 1))
+  
+  if (!is.null(color) & !is.null(shape)) {
+    
+     base + 
+       geom_path(data = df_monitored, color = desaturate(lighten(color, .25), .25), size = 1.5) +
+       geom_point(data = data, aes(color = monitored, shape = fatality, size = fatality, alpha = fatality, stroke = .8)) +
+       scale_color_manual(values = c("grey20", color), guide = "none") + 
+       scale_shape_manual(values = c(1, shape), guide = "none") +  
+       scale_size_manual(values = c(2, 6), guide = "none") +  
+       scale_alpha_manual(values = c(.3, 1), guide = "none") + 
+       ggtitle(title)
+    
+  } else if (!is.null(color) & is.null(shape)){ 
+    
+    base + 
+       geom_path(data = df_monitored, color = desaturate(lighten(color, .25), .25), size = 1.5) +
+       geom_point(data = data, aes(color = monitored), alpha = .7, size = size) +
+       scale_color_manual(values = c("grey20", color), guide = "none") + 
+       ggtitle(title)
+    
+  } else {
+    
+    base + 
+      geom_point(data = data, alpha = .7, size = size) + 
+      ggtitle(title)
+    
+  }
+}
+```
+
+
+## Comparison Distribution Scenarios
+
+```{r example-distributions}
+m <- .2    ## proportion monitored
+n <- 500L  ## number of basses
+s <- 1L    ## seed
+
+## uniform
+df_uni  <- generate_distribution(distribution = "uniform", prop_monitored = m, n = n, seed = s, var = FALSE)
+
+## random
+df_ran  <- generate_distribution(distribution = "random",  prop_monitored = m, n = n, seed = s, var = FALSE)
+
+## inner > outer (basic)
+df_inn1  <- generate_distribution(distribution = "inner",   prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 1)
+
+## inner > outer (basic)
+df_inn3  <- generate_distribution(distribution = "inner",   prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 3)
+
+## outer > inner (basic)
+df_out1  <- generate_distribution(distribution = "outer",   prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 1)
+
+## outer > inner (basic)
+df_out3  <- generate_distribution(distribution = "outer",   prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 3)
+
+## bottom > top (basic)
+df_bot1 <- generate_distribution(distribution = "bottom",  prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 1)
+
+## bottom > top (extreme)
+df_bot3 <- generate_distribution(distribution = "bottom",  prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 3)
+
+## top > bottom (basic)
+df_top1 <- generate_distribution(distribution = "top",     prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 1)
+
+## top > bottom (extreme)
+df_top3 <- generate_distribution(distribution = "top",     prop_monitored = m, n = n, seed = s, var = FALSE, skewness = 3)
+```
+
+
+```{r plots-distributions-rotor, fig.width=20, fig.height=11}
+gg_uni_r  <- plot_dist(df_uni,  title = "Uniform")
+gg_ran_r  <- plot_dist(df_ran,  title = "Random")
+gg_inn1_r <- plot_dist(df_inn1, title = "Inner > Outer")
+gg_inn3_r <- plot_dist(df_inn3, title = "Inner > Outer (skewed)")
+gg_out1_r <- plot_dist(df_out1, title = "Outer > Inner")
+gg_out3_r <- plot_dist(df_out3, title = "Outer > Inner (skewed)")
+gg_bot1_r <- plot_dist(df_bot1, title = "Bottom > Top")
+gg_bot3_r <- plot_dist(df_bot3, title = "Bottom > Top (skewed)")
+gg_top1_r <- plot_dist(df_top1, title = "Top > Bottom")
+gg_top3_r <- plot_dist(df_top3, title = "Top > Bottom (skewed)")
+
+## panel
+p_r <- (gg_uni_r | gg_inn1_r | gg_out1_r | gg_bot1_r | gg_top1_r) / (gg_ran_r | gg_inn3_r | gg_out3_r | gg_bot3_r | gg_top3_r) +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+p_r
+
+ggsave(here("plots", "distributions", "distributions_all_rotor.pdf"), width = 24, height = 11, device = cairo_pdf)
+
+## panel
+p_r_l <- 
+  wrap_plots(gg_uni_r, gg_ran_r, gg_inn1_r, gg_inn3_r, gg_out1_r, 
+             gg_out3_r, gg_bot1_r, gg_bot3_r, gg_top1_r, gg_top3_r, ncol = 2) * 
+  theme(plot.margin = margin(5, 40, 5, 40)) + 
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+ggsave(here("plots", "distributions", "distributions_all_rotor_long.pdf"), width = 12, height = 24, device = cairo_pdf)
+```
+
+
+```{r plots-distributions-monitoring, fig.width=20, fig.height=11}
+gg_uni_m  <- plot_dist(df_uni,  color = "orange2", title = "Uniform")
+gg_ran_m  <- plot_dist(df_ran,  color = "orange2", title = "Random")
+gg_inn1_m  <- plot_dist(df_inn1,  color = "orange2", title = "Inner > Outer")
+gg_inn3_m  <- plot_dist(df_inn3,  color = "orange2", title = "Inner > Outer (skewed)")
+gg_out1_m  <- plot_dist(df_out1,  color = "orange2", title = "Outer > Inner")
+gg_out3_m  <- plot_dist(df_out3,  color = "orange2", title = "Outer > Inne (skewed)r")
+gg_bot1_m <- plot_dist(df_bot1, color = "orange2", title = "Bottom > Top")
+gg_bot3_m <- plot_dist(df_bot3, color = "orange2", title = "Bottom > Top (skewed)")
+gg_top1_m <- plot_dist(df_top1, color = "orange2", title = "Top > Bottom")
+gg_top3_m <- plot_dist(df_top3, color = "orange2", title = "Top > Bottom (skewed)")
+
+## panel
+p_m <- (gg_uni_m | gg_inn1_m | gg_out1_m | gg_bot1_m | gg_top1_m) / (gg_ran_m | gg_inn3_m | gg_out3_m | gg_bot3_m | gg_top3_m) +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+p_m
+
+ggsave(here("plots", "distributions", "distributions_all_monitored.pdf"), width = 24, height = 11, device = cairo_pdf)
+```
+
+
+```{r plots-distributions-fatalities, fig.width=20, fig.height=11}
+gg_uni_f  <- plot_dist(df_uni,  color = "orange2", shape = 4, title = "Uniform")
+gg_ran_f  <- plot_dist(df_ran,  color = "orange2", shape = 4, title = "Random")
+gg_inn1_f  <- plot_dist(df_inn1,  color = "orange2", shape = 4, title = "Inner > Outer")
+gg_inn3_f  <- plot_dist(df_inn3,  color = "orange2", shape = 4, title = "Inner > Outer (skewed)")
+gg_out1_f  <- plot_dist(df_out1,  color = "orange2", shape = 4, title = "Outer > Inner")
+gg_out3_f  <- plot_dist(df_out3,  color = "orange2", shape = 4, title = "Outer > Inner (skewed)")
+gg_bot1_f <- plot_dist(df_bot1, color = "orange2", shape = 4, title = "Bottom > Top")
+gg_bot3_f <- plot_dist(df_bot3, color = "orange2", shape = 4, title = "Bottom > Top (skewed)")
+gg_top1_f <- plot_dist(df_top1, color = "orange2", shape = 4, title = "Top > Bottom")
+gg_top3_f <- plot_dist(df_top3, color = "orange2", shape = 4, title = "Top > Bottom (skewed)")
+
+## panel
+p_f <- (gg_uni_f | gg_inn1_f | gg_bot1_f | gg_top1_f) / (gg_ran_f | gg_inn3_f | gg_out3_f | gg_bot3_f | gg_top3_f) +
+  plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+p_f
+
+ggsave(here("plots", "distributions", "distributions_all_fatalities.pdf"), width = 24, height = 11, device = cairo_pdf)
+```
+
+
+## Plots Example Distributions
+
+
+```{r plots-example-distributions-setup}
+seed <- 123L
+distribution <- "inner"
+color <- "orange2"
+```
+
+
+### Small radius (30m) and low-frequency bats (20 kHz) 
+
+```{r plots-example-distributions-small-low, fig.width=5, fig.height=5.2}
+## small radius (30m) and low-frequency bats (20 kHz) 
+##   -> small n             -> larger prop_monitored
+small <- 100L
+low_30 <- .5
+
+df_30_low <- generate_distribution(n = small, prop_monitored = low_30, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
+
+(gg_d_30_low  <- plot_dist(df_30_low, size = 2, title = "30m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_m_30_low <- plot_dist(df_30_low, size = 2, color = color, title = "30m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_f_30_low <- plot_dist(df_30_low, color = color, shape = 4, title = "30m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+```
+
+
+### Small radius (30m) and high-frequency bats (40 kHz) 
+
+```{r plots-example-distributions-small-high, fig.width=5, fig.height=5.2}
+## small radius (30m) and high-frequency bats (40 kHz) 
+##   -> small n             -> smaller prop_monitored
+high_30 <- .17
+
+df_30_high <- generate_distribution(n = small, prop_monitored = high_30, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
+
+(gg_d_30_high <- plot_dist(df_30_high, size = 2, title = "30m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_m_30_high <- plot_dist(df_30_high, size = 2, color = color, title = "30m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_f_30_high <- plot_dist(df_30_high, color = color, shape = 4, title = "30m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+```
+
+
+### Large radius (60m) and low-frequency bats (20 kHz)  
+
+```{r plots-example-distributions-large-low, fig.width=5, fig.height=5.2}
+## large radius (60m) and low-frequency bats (20 kHz)  
+##   -> large n             -> larger prop_monitored
+large <- 400L
+low_60 <- .23
+
+df_60_low <- generate_distribution(n = large, prop_monitored = low_60, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
+
+(gg_d_60_low <- plot_dist(df_60_low, size = 2, title = "60m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_m_60_low <- plot_dist(df_60_low, size = 2, color = color, title = "60m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_f_60_low <- plot_dist(df_60_low, color = color, shape = 4, title = "60m radius + low-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+```
+
+
+### Large radius (60m) and high-frequency bats (40 kHz)  
+
+```{r plots-example-distributions-large-high, fig.width=5, fig.height=5.2}
+## large radius (60m) and high-frequency bats (40 kHz)  
+##   -> large n             -> smaller prop_monitored
+high_60 <- .04
+
+df_60_high <- generate_distribution(n = large, prop_monitored = high_60, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
+
+(gg_d_60_high <- plot_dist(df_60_high, size = 2, title = "60m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_m_60_high <- plot_dist(df_60_high, size = 2, color = color, title = "60m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+
+(gg_f_60_high <- plot_dist(df_60_high, color = color, shape = 4, title = "60m radius + high-frequency"))
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+```
+
+
+### Comparison Skewness
+
+```{r}
+plot_skewed <- function(dist, skewness) {
+  g <- plot_distribution(
+    generate_distribution(distribution = dist, skewness = skewness, 
+                          n = 300L, prop_monitored = .01, seed = 123L),
+    title = paste0("Skewness = ", skewness), color = "black", print = FALSE
+  )
+  
+  g <- g + theme(plot.title = element_markdown(size = 15, face = "plain"))
+  
+  return(g)
+}
+
+skewness_levels <- c(1:5, 10, 15, 20)
+n <- length(skewness_levels)
+
+## inner > outer 
+plots_inner <- purrr::map2(rep("inner",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))  ## c(1, 3, 5, 7, 9, 15, 30, 60)
+wrap_plots(plots_inner, ncol = 4) + plot_annotation(title = "Inner > Outer")
+ggsave(here::here("plots", "distributions", "distributions_gradient_inner.pdf"), width = 12, height = 7, device = cairo_pdf)
+
+## outer > inner
+plots_outer <- purrr::map2(rep("outer",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
+wrap_plots(plots_outer, ncol = 4) + plot_annotation(title = "Outer > Inner")
+ggsave(here::here("plots", "distributions", "distributions_gradient_outer.pdf"), width = 12, height = 7, device = cairo_pdf)
+
+## top > bottom
+plots_top <- purrr::map2(rep("top",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
+wrap_plots(plots_top, ncol = 4) + plot_annotation(title = "Top > Bottom")
+ggsave(here::here("plots", "distributions", "distributions_gradient_top.pdf"), width = 12, height = 7, device = cairo_pdf)
+
+## bottom > top
+plots_bottom <- purrr::map2(rep("bottom", n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
+wrap_plots(plots_bottom, ncol = 4) + plot_annotation(title = "Bottom > Top")
+ggsave(here::here("plots", "distributions", "distributions_gradient_bottom.pdf"), width = 12, height = 7, device = cairo_pdf)
+```
+
+
+
+```{r convert-pdf, include = FALSE}
+## convert PDFs to PNGs
+path <- here("plots", "distributions")
+pdfs <- list.files(path, pattern = ".*pdf")
+for(pdf in pdfs) {
+  pdftools::pdf_convert(
+    pdf = glue::glue("{path}/{pdf}"), 
+    filenames = glue::glue("{path}/png/{str_remove(pdf, '.pdf')}.png"),
+    format = "png", dpi = 700
+  )
+}
+```
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+Sys.time()
+sessionInfo()
+```
+
+</details>
+
