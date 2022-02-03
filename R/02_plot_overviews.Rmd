@@ -116,10 +116,10 @@ plot_dist <- function(data, title = NULL, color = NULL, shape = NULL, size = 1) 
     
      base + 
        geom_path(data = df_monitored, color = desaturate(lighten(color, .25), .25), size = 1.5) +
-       geom_point(data = data, aes(color = monitored, shape = fatality, size = fatality, alpha = fatality, stroke = .8)) +
+       geom_point(data = data, aes(color = monitored, shape = fatality, size = fatality, alpha = fatality, stroke = 1.2)) +
        scale_color_manual(values = c("grey20", color), guide = "none") + 
        scale_shape_manual(values = c(1, shape), guide = "none") +  
-       scale_size_manual(values = c(2, 6), guide = "none") +  
+       scale_size_manual(values = c(2, 10), guide = "none") +  
        scale_alpha_manual(values = c(.3, 1), guide = "none") + 
        ggtitle(title)
     
@@ -215,10 +215,10 @@ ggsave(here("plots", "distributions", "distributions_all_rotor_long.pdf"), width
 ```{r plots-distributions-monitoring, fig.width=20, fig.height=11}
 gg_uni_m  <- plot_dist(df_uni,  color = "orange2", title = "Uniform")
 gg_ran_m  <- plot_dist(df_ran,  color = "orange2", title = "Random")
-gg_inn1_m  <- plot_dist(df_inn1,  color = "orange2", title = "Inner > Outer")
-gg_inn3_m  <- plot_dist(df_inn3,  color = "orange2", title = "Inner > Outer (skewed)")
-gg_out1_m  <- plot_dist(df_out1,  color = "orange2", title = "Outer > Inner")
-gg_out3_m  <- plot_dist(df_out3,  color = "orange2", title = "Outer > Inne (skewed)r")
+gg_inn1_m <- plot_dist(df_inn1, color = "orange2", title = "Inner > Outer")
+gg_inn3_m <- plot_dist(df_inn3, color = "orange2", title = "Inner > Outer (skewed)")
+gg_out1_m <- plot_dist(df_out1, color = "orange2", title = "Outer > Inner")
+gg_out3_m <- plot_dist(df_out3, color = "orange2", title = "Outer > Inne (skewed)r")
 gg_bot1_m <- plot_dist(df_bot1, color = "orange2", title = "Bottom > Top")
 gg_bot3_m <- plot_dist(df_bot3, color = "orange2", title = "Bottom > Top (skewed)")
 gg_top1_m <- plot_dist(df_top1, color = "orange2", title = "Top > Bottom")
@@ -237,10 +237,10 @@ ggsave(here("plots", "distributions", "distributions_all_monitored.pdf"), width 
 ```{r plots-distributions-fatalities, fig.width=20, fig.height=11}
 gg_uni_f  <- plot_dist(df_uni,  color = "orange2", shape = 4, title = "Uniform")
 gg_ran_f  <- plot_dist(df_ran,  color = "orange2", shape = 4, title = "Random")
-gg_inn1_f  <- plot_dist(df_inn1,  color = "orange2", shape = 4, title = "Inner > Outer")
-gg_inn3_f  <- plot_dist(df_inn3,  color = "orange2", shape = 4, title = "Inner > Outer (skewed)")
-gg_out1_f  <- plot_dist(df_out1,  color = "orange2", shape = 4, title = "Outer > Inner")
-gg_out3_f  <- plot_dist(df_out3,  color = "orange2", shape = 4, title = "Outer > Inner (skewed)")
+gg_inn1_f <- plot_dist(df_inn1, color = "orange2", shape = 4, title = "Inner > Outer")
+gg_inn3_f <- plot_dist(df_inn3, color = "orange2", shape = 4, title = "Inner > Outer (skewed)")
+gg_out1_f <- plot_dist(df_out1, color = "orange2", shape = 4, title = "Outer > Inner")
+gg_out3_f <- plot_dist(df_out3, color = "orange2", shape = 4, title = "Outer > Inner (skewed)")
 gg_bot1_f <- plot_dist(df_bot1, color = "orange2", shape = 4, title = "Bottom > Top")
 gg_bot3_f <- plot_dist(df_bot3, color = "orange2", shape = 4, title = "Bottom > Top (skewed)")
 gg_top1_f <- plot_dist(df_top1, color = "orange2", shape = 4, title = "Top > Bottom")
