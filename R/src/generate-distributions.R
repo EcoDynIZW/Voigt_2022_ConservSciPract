@@ -134,7 +134,8 @@ generate_distribution <- function(prop_monitored, n, distribution, seed = NULL,
 
   ## sample bat pass id that get hit
   if (var == TRUE) {
-    corr_fatality <- (runif(1, 0, 1) + runif(1, 0, 1)) / 100
+    corr_fatality <- rnorm(1, .01, .005) ##(runif(1, 0, 1) + runif(1, 0, 1)) / 100
+    if (corr_fatality < 0) corr_fatality <- 0
   } else {
     corr_fatality <- .01
   }

@@ -79,7 +79,7 @@ We have the following parameters we can vary:
 ## Simulations Distributions
 
 ```{r run-simulations}
-rds <- here("output", "data-proc", "simulation-runs.rds")
+rds <- here("output", "data-proc", "simulation-runs-norm.rds")
 if (!file.exists(rds)) {
   scenarios <- simulate_multiple_distributions(
     runs = 200,   ## repetitions per combination, also used for seeding
@@ -95,12 +95,15 @@ if (!file.exists(rds)) {
 
 scenarios <-
   scenarios %>% 
-   mutate(distribution = factor(distribution, 
-                                levels = c("uniform", "random", 
-                                           "inner_1", "inner_3",
-                                           "outer_1", "outer_3", 
-                                           "bottom_1", "bottom_3", 
-                                           "top_1", "top_3")))
+   mutate(distribution = factor(
+     distribution, 
+     levels = c("uniform", "random", 
+                "inner_1", "inner_3",
+                "outer_1", "outer_3", 
+                "bottom_1", "bottom_3", 
+                "top_1", "top_3")
+    )
+  )
 ```
 
 

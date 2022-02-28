@@ -120,21 +120,21 @@ plot_dist <- function(data, title = NULL, color = NULL, shape = NULL, size = 1) 
        scale_color_manual(values = c("grey20", color), guide = "none") + 
        scale_shape_manual(values = c(1, shape), guide = "none") +  
        scale_size_manual(values = c(2, 10), guide = "none") +  
-       scale_alpha_manual(values = c(.3, 1), guide = "none") + 
+       scale_alpha_manual(values = c(.2, 1), guide = "none") + 
        ggtitle(title)
     
   } else if (!is.null(color) & is.null(shape)){ 
     
     base + 
        geom_path(data = df_monitored, color = desaturate(lighten(color, .25), .25), size = 1.5) +
-       geom_point(data = data, aes(color = monitored), alpha = .7, size = size) +
+       geom_point(data = data, aes(color = monitored), alpha = .2, size = size) +
        scale_color_manual(values = c("grey20", color), guide = "none") + 
        ggtitle(title)
     
   } else {
     
     base + 
-      geom_point(data = data, alpha = .7, size = size) + 
+      geom_point(data = data, alpha = .2, size = size) + 
       ggtitle(title)
     
   }
@@ -145,9 +145,9 @@ plot_dist <- function(data, title = NULL, color = NULL, shape = NULL, size = 1) 
 ## Comparison Distribution Scenarios
 
 ```{r example-distributions}
-m <- .2    ## proportion monitored
-n <- 500L  ## number of basses
-s <- 1L    ## seed
+m <- .2     ## proportion monitored
+n <- 1200L  ## number of basses
+s <- 1L     ## seed
 
 ## uniform
 df_uni  <- generate_distribution(distribution = "uniform", prop_monitored = m, n = n, seed = s, var = FALSE)
@@ -184,14 +184,14 @@ df_top3 <- generate_distribution(distribution = "top",     prop_monitored = m, n
 ```{r plots-distributions-rotor, fig.width=20, fig.height=11}
 gg_uni_r  <- plot_dist(df_uni,  title = "Uniform")
 gg_ran_r  <- plot_dist(df_ran,  title = "Random")
-gg_inn1_r <- plot_dist(df_inn1, title = "Inner > Outer")
-gg_inn3_r <- plot_dist(df_inn3, title = "Inner > Outer (skewed)")
-gg_out1_r <- plot_dist(df_out1, title = "Outer > Inner")
-gg_out3_r <- plot_dist(df_out3, title = "Outer > Inner (skewed)")
-gg_bot1_r <- plot_dist(df_bot1, title = "Bottom > Top")
-gg_bot3_r <- plot_dist(df_bot3, title = "Bottom > Top (skewed)")
-gg_top1_r <- plot_dist(df_top1, title = "Top > Bottom")
-gg_top3_r <- plot_dist(df_top3, title = "Top > Bottom (skewed)")
+gg_inn1_r <- plot_dist(df_inn1, title = "Inner (moderate)")
+gg_inn3_r <- plot_dist(df_inn3, title = "Inner (high)")
+gg_out1_r <- plot_dist(df_out1, title = "Outer (moderate)")
+gg_out3_r <- plot_dist(df_out3, title = "Outer (high)")
+gg_bot1_r <- plot_dist(df_bot1, title = "Bottom (moderate)")
+gg_bot3_r <- plot_dist(df_bot3, title = "Bottom (high)")
+gg_top1_r <- plot_dist(df_top1, title = "Top (moderate)")
+gg_top3_r <- plot_dist(df_top3, title = "Top (high)")
 
 ## panel
 p_r <- (gg_uni_r | gg_inn1_r | gg_out1_r | gg_bot1_r | gg_top1_r) / (gg_ran_r | gg_inn3_r | gg_out3_r | gg_bot3_r | gg_top3_r) +
@@ -215,14 +215,14 @@ ggsave(here("plots", "distributions", "distributions_all_rotor_long.pdf"), width
 ```{r plots-distributions-monitoring, fig.width=20, fig.height=11}
 gg_uni_m  <- plot_dist(df_uni,  color = "orange2", title = "Uniform")
 gg_ran_m  <- plot_dist(df_ran,  color = "orange2", title = "Random")
-gg_inn1_m <- plot_dist(df_inn1, color = "orange2", title = "Inner > Outer")
-gg_inn3_m <- plot_dist(df_inn3, color = "orange2", title = "Inner > Outer (skewed)")
-gg_out1_m <- plot_dist(df_out1, color = "orange2", title = "Outer > Inner")
-gg_out3_m <- plot_dist(df_out3, color = "orange2", title = "Outer > Inne (skewed)r")
-gg_bot1_m <- plot_dist(df_bot1, color = "orange2", title = "Bottom > Top")
-gg_bot3_m <- plot_dist(df_bot3, color = "orange2", title = "Bottom > Top (skewed)")
-gg_top1_m <- plot_dist(df_top1, color = "orange2", title = "Top > Bottom")
-gg_top3_m <- plot_dist(df_top3, color = "orange2", title = "Top > Bottom (skewed)")
+gg_inn1_m <- plot_dist(df_inn1, color = "orange2", title = "Inner (moderate)")
+gg_inn3_m <- plot_dist(df_inn3, color = "orange2", title = "Inner (high)")
+gg_out1_m <- plot_dist(df_out1, color = "orange2", title = "Outer (moderate)")
+gg_out3_m <- plot_dist(df_out3, color = "orange2", title = "Outer (high)")
+gg_bot1_m <- plot_dist(df_bot1, color = "orange2", title = "Bottom (moderate)")
+gg_bot3_m <- plot_dist(df_bot3, color = "orange2", title = "Bottom (high)")
+gg_top1_m <- plot_dist(df_top1, color = "orange2", title = "Top (moderate)")
+gg_top3_m <- plot_dist(df_top3, color = "orange2", title = "Top (high)")
 
 ## panel
 p_m <- (gg_uni_m | gg_inn1_m | gg_out1_m | gg_bot1_m | gg_top1_m) / (gg_ran_m | gg_inn3_m | gg_out3_m | gg_bot3_m | gg_top3_m) +
@@ -237,17 +237,17 @@ ggsave(here("plots", "distributions", "distributions_all_monitored.pdf"), width 
 ```{r plots-distributions-fatalities, fig.width=20, fig.height=11}
 gg_uni_f  <- plot_dist(df_uni,  color = "orange2", shape = 4, title = "Uniform")
 gg_ran_f  <- plot_dist(df_ran,  color = "orange2", shape = 4, title = "Random")
-gg_inn1_f <- plot_dist(df_inn1, color = "orange2", shape = 4, title = "Inner > Outer")
-gg_inn3_f <- plot_dist(df_inn3, color = "orange2", shape = 4, title = "Inner > Outer (skewed)")
-gg_out1_f <- plot_dist(df_out1, color = "orange2", shape = 4, title = "Outer > Inner")
-gg_out3_f <- plot_dist(df_out3, color = "orange2", shape = 4, title = "Outer > Inner (skewed)")
-gg_bot1_f <- plot_dist(df_bot1, color = "orange2", shape = 4, title = "Bottom > Top")
-gg_bot3_f <- plot_dist(df_bot3, color = "orange2", shape = 4, title = "Bottom > Top (skewed)")
-gg_top1_f <- plot_dist(df_top1, color = "orange2", shape = 4, title = "Top > Bottom")
-gg_top3_f <- plot_dist(df_top3, color = "orange2", shape = 4, title = "Top > Bottom (skewed)")
+gg_inn1_f <- plot_dist(df_inn1, color = "orange2", shape = 4, title = "Inner (moderate)")
+gg_inn3_f <- plot_dist(df_inn3, color = "orange2", shape = 4, title = "Inner (high)")
+gg_out1_f <- plot_dist(df_out1, color = "orange2", shape = 4, title = "Outer (moderate)")
+gg_out3_f <- plot_dist(df_out3, color = "orange2", shape = 4, title = "Outer (high)")
+gg_bot1_f <- plot_dist(df_bot1, color = "orange2", shape = 4, title = "Bottom (moderate)")
+gg_bot3_f <- plot_dist(df_bot3, color = "orange2", shape = 4, title = "Bottom (high)")
+gg_top1_f <- plot_dist(df_top1, color = "orange2", shape = 4, title = "Top (moderate)")
+gg_top3_f <- plot_dist(df_top3, color = "orange2", shape = 4, title = "Top (high)")
 
 ## panel
-p_f <- (gg_uni_f | gg_inn1_f | gg_bot1_f | gg_top1_f) / (gg_ran_f | gg_inn3_f | gg_out3_f | gg_bot3_f | gg_top3_f) +
+p_f <- (gg_uni_f | gg_inn1_f | gg_out1_f | gg_bot1_f | gg_top1_f) / (gg_ran_f | gg_inn3_f | gg_out3_f | gg_bot3_f | gg_top3_f) +
   plot_annotation(tag_levels = "a", tag_suffix = ")")
 
 p_f
