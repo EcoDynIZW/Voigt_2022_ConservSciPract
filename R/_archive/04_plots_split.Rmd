@@ -1,0 +1,907 @@
+---
+title: "Turbine Collision Risk: Generate Distribution Data"
+description: ""
+author:
+    - name: "Cédric Scherer"
+      url: https://cedricscherer.com
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0003-0645-5666
+    - name: "Christian Voigt"
+      affiliation: Leibniz Institute for Zoo and Wildlife Research
+      affiliation_url: https://www.izw-berlin.de/en/home.html
+      orcid_id: 0000-0002-0706-3974
+date: "`r Sys.Date()`"
+output: 
+    distill::distill_article:
+        highlight: kate
+        code_folding: true  
+        toc: true            
+        toc_depth: 2         
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 18, fig.height = 10, 
+                      dev = "ragg_png", res = 1000, retina = 1)
+```
+
+## Preparation 
+
+```{r prep}
+library(tidyverse)
+library(here)
+library(broom)
+library(patchwork)
+
+theme_set(theme_light(base_size = 11.5, base_family = "Open Sans"))
+theme_update(
+  panel.grid.major = element_line(size = .3, color = "grey93"),
+  panel.grid.minor = element_blank(),
+  panel.grid.major.x = element_blank(),
+  #strip.background = element_rect(fill = "grey60", colour = "grey60"),
+  #strip.text = element_text(size = 14, face = "bold"),
+  strip.background = element_rect(fill = "grey87", colour = "grey87"),
+  strip.text = element_text(size = 14, face = "bold", color = "black"),
+  strip.text.x = element_text(margin = margin(4, 6, 4, 6)),
+  panel.border = element_rect(color = "grey87", fill = "transparent"),
+  axis.title.x = element_text(size = 14, margin = margin(t = 12)),
+  axis.title.y = element_text(size = 14, margin = margin(r = 12)),
+  axis.text = element_text(size = 12),
+  axis.ticks = element_line(color = "grey87"),
+  legend.title = element_text(size = 14, face = "bold"),
+  legend.text = element_text(size = 12),
+  plot.title = element_text(size = 20, face = "bold", margin = margin(5, 0, 5, 0)),
+  plot.title.position = "plot",
+  plot.tag = element_text(size = 16),
+  plot.margin = margin(rep(12, 4))
+)
+
+## source functions to generate and visualize distributions
+source(here("R", "src", "generate-distributions.R"))
+```
+
+## Research Question
+
+* Predictive power of the acoustic monitoring
+
+> Is the predictive power of the current acoustic monitoring sufficient enough to estimate the true number of killed bats?
+
+### Predictions
+
+The predictive power of the acoustic monitoring for the extrapolation of the expected number of stroke victims is decreasing
+
+* in case the crossing bats are not distributed uniformly or randomly.
+
+* with increasing length of the rotor blades.
+
+* for species with high-frequency echo calls.
+
+
+### Open Questions
+
+* wie die Dichte skalieren zwischen großen und kleinen Windrädern? 
+  - z.B. von innen nach außen abhängig von relativer oder absoluter Distanz zum Mittelpunkt?
+  
+* globale oder lokale Anzahl an Fledermäusen konstant halten?
+
+## Inputs
+
+We have the following parameters we can vary:
+
+* length of rotor blades (`radius_rotor`) - 60 m versus 33 m
+  + determines area of wind turbine (`area_rotor` as `pi * radius_rotor^2`)
+* proportion of area covered by acoustic monitoring (`proportion_covered`)
+  + determines area of acoustic monitoring (`area_monitored` as `area_rotor * proportion_covered`)
+  + determines radius to detect bars (`radius_monitored` as `sqrt(area_monitored / pi)`)
+* number of bats simulated (`n`)
+  + could be either total (for now) or number monitored (maybe later)
+
+
+## Simulated Data
+
+```{r load.simulated-data}
+scenarios <- 
+  ## version with uniform distribution of the variation in fatalities
+  #read_rds(here("output", "data-proc", "simulation-runs-unif.rds")) %>% 
+  ## version with normal distribution of the variation in fatalities
+  read_rds(here("output", "data-proc", "simulation-runs-norm.rds")) %>% 
+  ## remove extremely skewed distributions
+  filter(!str_detect(distribution, "_5$"), prop_monitored != .23) %>% 
+  group_by(n, prop_monitored, distribution) %>% 
+  mutate(
+    diff_abs = mean(prop_n_monitored) - prop_monitored,
+    diff_rel = (mean(prop_n_monitored) / prop_monitored) - 1
+  ) %>% 
+  ungroup() %>% 
+  mutate(
+    distribution = factor(
+      distribution, 
+      levels = c(
+        "uniform", "random", 
+        "inner_1", "inner_3",
+        "outer_1", "outer_3", 
+        "bottom_1", "bottom_3", 
+        "top_1", "top_3"
+      ),
+      labels = c(
+        "uniform", "random",
+        "inner (moderate)", "inner (high)",
+        "outer (moderate)", "outer (high)",
+        "bottom (moderate)", "bottom (high)",
+        "top (moderate)", "top (high)"
+      )
+    ),
+    prop_monitored_lab = paste0(prop_monitored * 100, "%"),
+    prop_monitored_lab = fct_reorder(prop_monitored_lab, prop_monitored)
+  )
+    
+    
+scenarios_control <-
+  scenarios %>% 
+  filter(distribution %in% c("uniform", "random")) %>% 
+  mutate(
+    distribution = factor(
+      distribution, 
+      levels = c("uniform", "random")
+    ),
+    prop_monitored_lab = paste0(prop_monitored * 100, "%"),
+    prop_monitored_lab = fct_reorder(prop_monitored_lab, prop_monitored)
+  )
+    
+    
+scenarios_pattern <-
+  scenarios %>% 
+  filter(!distribution %in% c("uniform", "random")) %>% 
+  mutate(
+    distribution = factor(
+      distribution, 
+      levels = c(
+        # "inner_1", "inner_3",
+        # "outer_1", "outer_3",
+        # "bottom_1", "bottom_3",
+        # "top_1", "top_3"
+        "inner (moderate)", "inner (high)",
+        "outer (moderate)", "outer (high)",
+        "bottom (moderate)", "bottom (high)",
+        "top (moderate)", "top (high)"
+      ),
+      labels = c(
+        "inner (moderate)", "inner (high)",
+        "outer (moderate)", "outer (high)",
+        "bottom (moderate)", "bottom (high)",
+        "top (moderate)", "top (high)"
+      )
+    ),
+    prop_monitored_lab = paste0(prop_monitored * 100, "%"),
+    prop_monitored_lab = fct_reorder(prop_monitored_lab, prop_monitored)
+  )
+```
+
+
+## Visualizations Bat Passes
+
+### Connected Error Bars 
+
+Distribution (col) x Monitored Area (color) x Passes (x)
+
+```{r lineplot-outcomes-summary, fig.width=14.5, fig.height=7.8}
+p_data <- 
+  scenarios_pattern %>% 
+  group_by(distribution, prop_monitored, n) %>% 
+  summarize(mean = mean(prop_n_monitored), sd = sd(prop_n_monitored)) %>% 
+  ungroup() %>% 
+  mutate(
+    base = mean - prop_monitored,
+    min = base - sd, 
+    max = base + sd
+  ) 
+
+p_pattern <- 
+  p_data %>% 
+  ggplot(aes(factor(n), base, color = prop_monitored, group = prop_monitored)) +
+  geom_hline(aes(yintercept = 0), color = "grey87", size = 1.2)  + 
+  geom_line(
+    aes(color = prop_monitored, 
+        color = after_scale(colorspace::desaturate(colorspace::lighten(color, .6), .4))),
+    size = .5, show.legend = FALSE
+  ) +
+  geom_pointrange(aes(ymin = min, ymax = max), size = .4) +
+  facet_wrap(~distribution, nrow = 2, dir = "v") +
+  scale_x_discrete(expand = c(.05, .05)) +
+  scale_y_continuous(expand = c(.012, .012), breaks = -5:5 / 10) +
+  scico::scale_color_scico(
+    palette = "bamako", end = .8, direction = -1, name = "Proportion\ncovered\nby AUD:",
+    breaks = seq(.05, .5, by = .05), labels = scales::percent_format(accuracy = 1)
+  ) +
+  guides(color = guide_legend(keywidth = unit(.6, "lines"), keyheight = unit(1.2, "lines"))) +
+  labs(x = "Number of bat passes", y = NULL) +
+  theme(
+    panel.spacing.x = unit(1, "lines"), 
+    panel.spacing.y = unit(.6, "lines"), 
+    legend.text = element_text(hjust = 1),
+    strip.text = element_text(hjust = 0),
+    axis.text = element_text(size = 10),
+    axis.title.x = element_text(hjust = .38)
+  )
+
+p_control <- 
+  scenarios_control %>% 
+  group_by(distribution, prop_monitored, n) %>% 
+  summarize(mean = mean(prop_n_monitored), sd = sd(prop_n_monitored)) %>% 
+  ungroup() %>% 
+  mutate(
+    base = mean - prop_monitored,
+    min = base - sd, 
+    max = base + sd
+  ) %>% 
+  ggplot(aes(factor(n), base, color = prop_monitored, group = prop_monitored)) +
+  geom_hline(aes(yintercept = 0), color = "grey87", size = 1.2)  + 
+  geom_line(
+    aes(color = prop_monitored, 
+        color = after_scale(colorspace::desaturate(colorspace::lighten(color, .6), .4))),
+    size = .5, show.legend = FALSE
+  ) +
+  geom_pointrange(aes(ymin = min, ymax = max), size = .4) +
+  facet_wrap(~distribution, nrow = 2, dir = "v") +
+  scale_x_discrete(expand = c(.05, .05)) +
+  scale_y_continuous(
+    expand = c(.012, .012), breaks = -5:5 / 10, 
+    limits = c(min(p_data$min), max(p_data$max))
+  ) +
+  scico::scale_color_scico(palette = "bamako", end = .8, direction = -1, guide = "none") +
+  labs(x = "", y = "Deviation from expected proportion") +
+  theme(
+    plot.margin = margin(r = 20),
+    panel.spacing.y = unit(.6, "lines"), 
+    strip.text = element_text(hjust = 0),
+    axis.text = element_text(size = 10)
+  )
+
+p_control + p_pattern + plot_layout(widths = c(1, 4.3)) + plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+ggsave(here("plots", "bat_passes", "passes_recorded_mean_sd_lines_alt.pdf"), width = 14.5, height = 7.8, device = cairo_pdf)
+ggsave(here("plots", "bat_passes", "png", "passes_recorded_mean_sd_lines_alt.png"), width = 14.5, height = 7.8, dpi = 800)
+```
+
+
+### Heatmap
+
+```{r heatmap-outcomes-summary-vertical, fig.width=12, fig.height=13.2}
+scenarios %>% 
+  mutate(
+    scenario_highlight = ifelse(
+      (n == 400 & prop_monitored == .04) | (n == 100 & prop_monitored == .5), "1", "0"
+    ),
+    label_highlight = ifelse(
+      (n == 400 & prop_monitored == .04) | (n == 100 & prop_monitored == .5), 
+      paste0(sprintf("%3.1f", diff_abs * 100), "%"), NA_character_
+    )
+  ) %>% 
+  ggplot(aes(prop_monitored_lab, fct_rev(factor(n)))) +
+  geom_tile(aes(fill = diff_abs), color = "white", size = .7) +
+  geom_tile(aes(color = scenario_highlight), fill = "transparent", size = .8) +
+  geom_text(
+    aes(label = label_highlight), 
+    color = "white", family = "Open Sans", size = 3.3, fontface = "bold"
+  ) +
+  geom_text(
+    aes(label = label_highlight, alpha = abs(base) < .2), 
+    color = "#212121", family = "Open Sans", size = 3.3, fontface = "bold"
+  ) +
+  facet_wrap(~distribution, ncol = 2, dir = "h") +
+  coord_cartesian(expand = FALSE, clip = "off") +
+  scale_color_manual(values = c("transparent", "#212121"), guide = "none") +
+  scico::scale_fill_scico(
+    palette = "roma", direction = 1, name = "Deviation from expected proportion",
+    breaks = seq(-.5, .5, by = .1), midpoint = 0
+  ) +
+  scale_alpha_manual(values = c(0, 1), guide = "none") +
+  guides(fill = guide_colorsteps(title.position = "top")) +
+  labs(x = "Proportion covered by AUD", y = "Number of bat passes") +
+  theme(
+    panel.spacing = unit(.9, "lines"), 
+    panel.background = element_rect(size = .7, color = "white", fill = "transparent"),
+    panel.border = element_rect(color = "transparent", fill = "transparent"),
+    axis.text = element_text(size = 11.5),
+    axis.ticks = element_line(color = "transparent"),
+    axis.ticks.length = unit(.3, "lines"),
+    strip.text = element_text(color = "black"),
+    strip.background = element_rect(color = "transparent", fill = "transparent"),
+    legend.position = "top",
+    legend.justification = "left",
+    legend.key.width = unit(6, "lines"), legend.key.height = unit(.6, "lines")
+  )
+
+ggsave(here("plots", "bat_passes", "passes_recorded_mean_heatmap_vertical.pdf"), 
+       width = 12, height = 13.2, device = cairo_pdf)
+
+ggsave(here("plots", "bat_passes", "passes_recorded_mean_heatmap_vertical.svg"), 
+       width = 12, height = 13.2)
+
+ggsave(here("plots", "bat_passes", "png", "passes_recorded_mean_heatmap_vertical.png"), 
+       width = 12, height = 13.2, dpi = 800)
+```
+
+
+### Boxplots
+
+#### Proportion of Passes Monitored (y) per Distribution (col) x Monitored Area (rows) x Passes (x)
+
+```{r boxplots-passes-monitored-grid, fig.width=23, fig.height=13}
+box <- 
+  scenarios %>% 
+  filter(prop_monitored != .04) %>% 
+  mutate(
+    distribution = factor(
+      distribution, 
+      levels = c(
+        "uniform", "random", 
+        "inner (moderate)", "inner (high)",
+        "outer (moderate)", "outer (high)",
+        "bottom (moderate)", "bottom (high)",
+        "top (moderate)", "top (high)"
+      ),
+      labels = c(
+        "uniform", "random", 
+        "inner\n(moderate)", "inner\n(high)",
+        "outer\n(moderate)", "outer\n(high)",
+        "bottom\n(moderate)", "bottom\n(high)",
+        "top\n(moderate)", "top\n(high)"
+      )
+    )
+  ) %>% 
+  ggplot(aes(factor(n), prop_n_monitored)) +
+  geom_hline(aes(yintercept = prop_monitored), color = "grey75", size = .7)  + 
+  geom_boxplot(aes(color = diff_abs), size = .4, outlier.shape = 1, outlier.size = .3) + 
+  scale_y_continuous(
+    labels = scales::percent_format(), 
+    sec.axis = dup_axis(name = "Area covered by AUD", breaks = NULL, labels = NULL)
+  ) +
+  scale_color_gradient2(
+    low = "firebrick", mid = "grey40", high = "firebrick", 
+    limits = c(-.5, .5), guide = "none"
+  ) +
+  labs(x = "Number of bat passes", y = "Proportion of passes monitored") +
+  theme(
+    panel.spacing.y = unit(.65, "lines"), axis.text = element_text(size = 9),
+    axis.title.x = element_text(size = 18), 
+    axis.title.y = element_text(size = 18), 
+    strip.text.x = element_text(size = 18),
+    strip.text.y = element_text(size = 16),
+    axis.title.y.right = element_text(size = 21, color = "grey60", face = "bold", margin = margin(l = 12))
+  )
+
+## fixed y scale
+box + facet_grid(prop_monitored_lab ~ distribution)
+
+ggsave(here("plots", "bat_passes", "passes_recorded_boxplots_fixed.pdf"), 
+       width = 23, height = 13, device = cairo_pdf)
+
+ggsave(here("plots", "bat_passes", "png", "passes_recorded_boxplots_fixed.png"), 
+       width = 23, height = 13, dpi = 600)
+
+## free y scale
+box + facet_grid(prop_monitored_lab ~ distribution, scale = "free_y") 
+
+ggsave(here("plots", "bat_passes", "passes_recorded_boxplots_free.pdf"), 
+       width = 23, height = 13, device = cairo_pdf)
+
+ggsave(here("plots", "bat_passes", "png", "passes_recorded_boxplots_free.png"), 
+       width = 23, height = 13, dpi = 600)
+```
+
+
+#### Difference Predicted vs. Expected (y) per Distribution (col) x AUD (x)
+
+*for scenarios with 400 bat passes, all AUDs*
+
+```{r boxplot-passes-difference-all, fig.width=15, fig.height=8.2}
+#colors <- c("dodgerblue", "firebrick")
+#colors <- c("#28A87D", "#a87d28")
+colors <- scico::scico(n = 9, palette = "roma")[c(8,2)]
+
+p_data <- 
+  scenarios_pattern %>% 
+  filter(n == 400) %>% 
+  filter(!prop_monitored %in% c(.04)) %>% ## remove dedicated scenario 
+  mutate(diff_passes = ((n_monitored / prop_monitored) - n) / n) 
+
+p_pattern <- 
+  p_data %>% 
+  ggplot(aes(prop_monitored_lab, diff_passes)) +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = 0, ymax = Inf, fill = colors[1], alpha = .1) + 
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0, fill = colors[2], alpha = .1) + 
+  geom_hline(yintercept = 0, size = .6, linetype = "31", color = "grey75") +
+  geom_boxplot(
+    color = "grey45", width = .85, size = .5, 
+    outlier.size = .8, outlier.alpha = .4, outlier.shape = 1
+  ) +
+  stat_summary(geom = "point", shape = 18, size = 3, color = "#212121") +
+  facet_wrap(~distribution, nrow = 2, dir = "v") + 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  scale_y_continuous(
+    expand = c(.03, .03), breaks = seq(-1, 3, by = 1),  
+    labels = scales::percent_format()
+  ) +
+  scale_color_identity() +
+  labs(x = "Area covered by AUD", y = NULL) +
+  theme(
+    panel.spacing.y = unit(.6, "lines"), 
+    axis.text.x = element_text(size = 11),
+    strip.text = element_text(hjust = 0, size = 16),
+    axis.title.x = element_text(hjust = .23)
+  )
+
+data_labs <-  
+  scenarios_control %>% 
+  filter(n == 400) %>% 
+  filter(!prop_monitored %in% c(.04)) %>% ## remove dedicated scenario 
+  mutate(diff_passes = ((n_monitored / prop_monitored) - n) / n) %>% 
+  bind_rows(
+    tibble(
+      distribution = factor("uniform", levels = c("uniform", "random")),
+      label = c("Overestimation", "Underestimation"),
+      prop_monitored_lab = factor("10%", levels = levels(scenarios_control$prop_monitored_lab)),
+      diff_passes = c(1.25, -.67),
+      color = colors
+    )
+  )
+
+p_control <- 
+  data_labs %>% 
+  filter(is.na(label)) %>% 
+  ggplot(aes(prop_monitored_lab, diff_passes)) +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = 0, ymax = Inf, fill = colors[1], alpha = .1) + 
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0, fill = colors[2], alpha = .1) + 
+  geom_text(data = data_labs, aes(label = label, color = color), hjust = 0, fontface = "bold", size = 5) +
+  geom_hline(yintercept = 0, size = .6, linetype = "31", color = "grey75") +
+  geom_boxplot(
+    color = "grey45", width = .85, size = .5, 
+    outlier.size = .8, outlier.alpha = .4, outlier.shape = 1
+  ) +
+  stat_summary(geom = "point", shape = 18, size = 3, color = "#212121") +
+  facet_wrap(~distribution, nrow = 2, dir = "v") + 
+  scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+  scale_y_continuous(
+    expand = c(.03, .03), breaks = seq(-1, 3, by = 1),
+    limits = range(p_data$diff_passes), labels = scales::percent_format()
+  ) +
+  scale_color_identity() +
+  labs(x = "", y = "Relative difference betweem predicted and true bat passes") +
+  theme(
+    panel.spacing.y = unit(.6, "lines"), 
+    axis.text.x = element_text(size = 11),
+    strip.text = element_text(hjust = 0, size = 16),
+    plot.margin = margin(r = 20)
+  )
+
+p_control + p_pattern + plot_layout(widths = c(1, 4.3)) + plot_annotation(tag_levels = "a", tag_suffix = ")")
+
+ggsave(here("plots", "bat_passes", "passes_difference_boxplots_rel.pdf"), 
+       width = 15, height = 8.2, device = cairo_pdf)
+
+ggsave(here("plots", "bat_passes", "png", "passes_difference_boxplots_rel.png"), 
+       width = 15, height = 8.2, dpi = 800)
+```
+
+
+*for dedicated scenarios*
+
+```{r boxplot-passes-difference-scenarios, fig.width=12, fig.height=9}
+p_data <- 
+  scenarios_pattern %>%
+  filter((n == 400 & prop_monitored == .04) | (n == 100 & prop_monitored == .5)) %>% 
+  mutate(
+    diff_passes = ((n_monitored / prop_monitored) - n) / n,
+    scenario = paste0("n = ", n, "\narea = ", prop_monitored*100, "%")
+  )
+
+p_pattern <- 
+  p_data %>% 
+  ggplot(aes(scenario, diff_passes)) +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = 0, ymax = Inf, fill = colors[1], alpha = .1) + 
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0, fill = colors[2], alpha = .1) + 
+  geom_hline(yintercept = 0, size = .6, linetype = "31", color = "grey75") +
+  geom_boxplot(
+    color = "grey45", size = .6, width = .5, position = position_nudge(x = .05), 
+    outlier.size = .9, outlier.shape = 1
+  ) +
+  geom_point(
+    color = "grey90", shape = "-", size = 10, 
+    position = position_nudge(x = -.31)
+  ) +
+  geom_point(
+    color = "grey45", shape = "-", size = 10, alpha = .05, 
+    position = position_nudge(x = -.31)
+  ) +
+  stat_summary(
+    geom = "point", shape = 18, size = 4.5, color = "#212121", 
+    position = position_nudge(x = .05)
+  ) +
+  facet_wrap(~distribution, nrow = 2, dir = "v") + 
+  scale_y_continuous(
+    expand = c(.04, .04), breaks = seq(-1, 3.5, by = .5), 
+    labels = scales::percent_format()
+  ) +
+  scale_color_identity() +
+  labs(x = "Scenario: Number of bat passes and area covered by AUD", y = NULL) +
+  theme(
+    panel.spacing.y = unit(.6, "lines"), 
+    strip.text = element_text(hjust = 0),
+    axis.title.x = element_text(hjust = .03)
+  )
+
+data_labs <-  
+  scenarios_control  %>%
+  filter((n == 400 & prop_monitored == .04) | (n == 100 & prop_monitored == .5)) %>% 
+  mutate(
+    diff_passes = ((n_monitored / prop_monitored) - n) / n,
+    scenario = paste0("n = ", n, "\narea = ", prop_monitored*100, "%")
+  ) %>% 
+  bind_rows(
+    tibble(
+      distribution = factor("uniform", levels = c("uniform", "random")),
+      label = c("Overestimation", "Underestimation"),
+      scenario = "n = 100\narea = 50%",
+      diff_passes = c(1.25, -.75),
+      color = colors
+    )
+  )
+
+p_control <- 
+  data_labs %>% 
+  filter(is.na(label)) %>% 
+  ggplot(aes(scenario, diff_passes)) +
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = 0, ymax = Inf, fill = colors[1], alpha = .12) + 
+  annotate(geom = "rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = 0, fill = colors[2], alpha = .12) + 
+  geom_text(data = data_labs, aes(label = label, color = color), hjust = .15, fontface = "bold", size = 5) +
+  geom_hline(yintercept = 0, size = .6, linetype = "31", color = "grey75") +
+  geom_boxplot(
+    color = "grey45", size = .6, width = .5, position = position_nudge(x = .05), 
+    outlier.size = .9, outlier.shape = 1
+  ) +
+  geom_point(
+    color = "grey90", shape = "-", size = 10, 
+    position = position_nudge(x = -.31)
+  ) +
+  geom_point(
+    color = "grey45", shape = "-", size = 10, alpha = .05, 
+    position = position_nudge(x = -.31)
+  ) +
+  stat_summary(
+    geom = "point", shape = 18, size = 4.5, color = "#212121", 
+    position = position_nudge(x = .05)
+  ) +
+  facet_wrap(~distribution, nrow = 2, dir = "v") + 
+  scale_y_continuous(
+    expand = c(.04, .04), breaks = seq(-1, 3.5, by = .5), 
+    limits = range(p_data$diff_passes), labels = scales::percent_format()
+  ) +
+  scale_color_identity() +
+  labs(x = "", y = "Relative difference betweem predicted and true bat passes") +
+  theme(
+    plot.margin = margin(r = 20),
+    panel.spacing.y = unit(.6, "lines"), 
+    strip.text = element_text(hjust = 0)
+  )
+
+p_control + p_pattern + plot_layout(widths = c(1, 4.3)) + plot_annotation(tag_levels = "a", tag_suffix = ")") -> p
+
+ggsave(here("plots", "bat_passes", "passes_difference_boxplots_rel_scenarios.pdf"), 
+       width = 15, height = 8.2, device = cairo_pdf)
+
+ggsave(here("plots", "bat_passes", "png", "passes_difference_boxplots_rel_scenarios.png"), 
+       width = 15, height = 8.2, dpi = 800)
+```
+
+
+## Visualizations Fatalities
+
+### Fatalities vs bat passes — What really happens
+
+```{r plots-fatalities-passes-reality, fig.width=13.5, fig.height=3.2}
+## with variation
+scenarios %>% 
+  filter(prop_monitored == .05) %>% 
+  ggplot(aes(n, n_fatalities)) +
+  #geom_abline(slope = .01, intercept = 0, size = .6, color = "grey75") +
+  geom_jitter(alpha = .02, width = 20, height = 0) +
+  geom_quantile(quantiles = c(.25, .75), color = "dodgerblue3", size = .6) +
+  geom_quantile(quantiles = c(.5), color = "red", size = .9) +
+  facet_grid(~ distribution) +
+  scale_x_continuous(expand = c(.1, .1)) +
+  labs(x = "Number of bat passes (reality)",
+       y = "Number of fatalities") + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    axis.text.x = element_text(size = 10)
+  )
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_reality_var.pdf"), width = 13.5, height = 3.2, device = cairo_pdf)
+
+
+## without variation
+scenarios %>% 
+  filter(prop_monitored == .05) %>% 
+  mutate(n_fatalities = round(n / 100)) %>% 
+  ggplot(aes(n, n_fatalities)) +
+  #geom_abline(slope = .01, intercept = 0, size = .6, color = "grey75") +
+  geom_point(alpha = .02) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "dodgerblue3", size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "red", size = .9) +
+  facet_grid(~ distribution) +
+  scale_x_continuous(expand = c(.1, .1)) +
+  labs(x = "Number of bat passes (reality)",
+       y = "Number of fatalities") + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    axis.text.x = element_text(size = 10)
+  )
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_reality_fix.pdf"), width = 13.5, height = 3.2, device = cairo_pdf)
+```
+
+### Fatalities vs bat passes — What we observe
+
+```{r fit-models}
+fits_scenarios_pattern <- 
+  scenarios_pattern %>% 
+  filter(prop_monitored %in% c(.04, .5)) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)) %>% 
+  nest(data = -c(distribution, prop_monitored)) %>% 
+  mutate(
+    fit = map(data, ~ lm(n_fatalities ~ n_expected, data = .x)),
+    tidied = map(fit, tidy),
+    glance = map(fit, glance),
+    augment = map(fit, augment),
+    rsq = glance %>% map_dbl('r.squared'),
+    slope = tidied %>% map_dbl(function(x) x$estimate[2])
+  ) %>% 
+  dplyr::select(distribution, prop_monitored, rsq, slope)
+
+fits_scenarios_control <- 
+  scenarios_control %>% 
+  filter(prop_monitored %in% c(.04, .5)) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)) %>% 
+  nest(data = -c(distribution, prop_monitored)) %>% 
+  mutate(
+    fit = map(data, ~ lm(n_fatalities ~ n_expected, data = .x)),
+    tidied = map(fit, tidy),
+    glance = map(fit, glance),
+    augment = map(fit, augment),
+    rsq = glance %>% map_dbl('r.squared'),
+    slope = tidied %>% map_dbl(function(x) x$estimate[2])
+  ) %>% 
+  dplyr::select(distribution, prop_monitored, rsq, slope)
+```
+
+
+```{r plots-fatalities-passes-monitored-4perc, fig.width=15, fig.height=7}
+p_data <- 
+  scenarios_pattern %>% 
+  filter(prop_monitored == .04) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored))
+
+p_pattern <- 
+  p_data %>% 
+  left_join(fits_scenarios_pattern) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", alpha = .7, size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  geom_text(
+    aes(label = paste("R² = ", sprintf("%1.2f", rsq)), 
+        x = 0, y = 86), 
+    stat = "unique", family = "Open Sans", color = "grey30",
+    size = 3.7, hjust = 0
+  ) +
+  facet_wrap(~ distribution, nrow = 2, scales = "free_x", dir = "v") +
+  scale_x_continuous(limits = c(0, max(p_data$n_expected)), breaks = 0:5*4000,
+                     labels = scales::comma_format()) +
+  scale_y_continuous(breaks = 0:4*20) +
+  labs(x = "Number of bat passes (predicted)", y = NULL) + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.spacing.x = unit(1, "lines"), 
+    panel.spacing.y = unit(.6, "lines"), 
+    legend.text = element_text(hjust = 1),
+    strip.text = element_text(hjust = 0),
+    axis.title.x = element_text(hjust = .23)
+  )
+
+p_control <- 
+  scenarios_control %>% 
+  filter(prop_monitored == .04) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)) %>% 
+  left_join(fits_scenarios_control) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", alpha = .7, size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  geom_text(
+    aes(label = paste("R² = ", sprintf("%1.2f", rsq)), 
+        x = 0, y = 86), 
+    stat = "unique", family = "Open Sans", color = "grey30",
+    size = 3.7, hjust = 0
+  ) +
+  facet_wrap(~ distribution, nrow = 2, scales = "free_x") +
+  scale_x_continuous(limits = c(0, max(p_data$n_expected)), breaks = 0:5*4000,
+                     labels = scales::comma_format()) +
+  scale_y_continuous(limits = range(p_data$n_fatalities), breaks = 0:4*20) +
+  labs(x = "", y = "Number of fatalities") + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    axis.title.y.right = element_text(size = 16, color = "grey60", 
+                                      face = "bold", margin = margin(l = 12)),
+    plot.margin = margin(r = 20),
+    panel.spacing.y = unit(.6, "lines"), 
+    strip.text = element_text(hjust = 0)
+  )
+
+p_control + p_pattern + plot_layout(widths = c(1, 4.3)) + 
+  plot_annotation(tag_levels = "a", tag_suffix = ")",
+                  title = "Relative area covered by AUD: 4%")
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_expected_04.pdf"), 
+       width = 15, height = 7, device = cairo_pdf)
+
+ggsave(here("plots", "fatalities", "png", "fatalities_correlation_expected_04.png"), 
+       width = 15, height = 7, dpi = 800)
+```
+
+
+```{r plots-fatalities-passes-monitored-50perc, fig.width=15, fig.height=7}
+p_data <- 
+  scenarios_pattern %>% 
+  filter(prop_monitored == .5) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored))
+
+p_pattern <- 
+  p_data %>% 
+  left_join(fits_scenarios_pattern) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", alpha = .7, size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  geom_text(
+    aes(label = paste("R² = ", sprintf("%1.2f", rsq)), 
+        x = 0, y = 86), 
+    stat = "unique", family = "Open Sans", color = "grey30",
+    size = 3.7, hjust = 0
+  ) +
+  facet_wrap(~ distribution, nrow = 2, scales = "free_x", dir = "v") +
+  scale_x_continuous(limits = c(0, max(p_data$n_expected)), breaks = 0:5*2000) +
+  scale_y_continuous(breaks = 0:4*20) +
+  labs(x = "Number of bat passes (predicted)", y = NULL, tag = "d)") + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.spacing.x = unit(1, "lines"), 
+    panel.spacing.y = unit(.6, "lines"), 
+    legend.text = element_text(hjust = 1),
+    strip.text = element_text(hjust = 0),
+    axis.title.x = element_text(hjust = .23)
+  )
+
+p_control <- 
+  scenarios_control %>% 
+  filter(prop_monitored == .5) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)) %>% 
+  left_join(fits_scenarios_control) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", alpha = .7, size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  geom_text(
+    aes(label = paste("R² = ", sprintf("%1.2f", rsq)), 
+        x = 0, y = 86), 
+    stat = "unique", family = "Open Sans", color = "grey30",
+    size = 3.7, hjust = 0
+  ) +
+  facet_wrap(~ distribution, nrow = 2, scales = "free_x") +
+  scale_x_continuous(limits = c(0, max(p_data$n_expected)), breaks = 0:5*2000) +
+  scale_y_continuous(limits = range(p_data$n_fatalities), breaks = 0:4*20) +
+  labs(x = "", y = "Number of fatalities", tag = "c)") + 
+  theme(
+    panel.grid.major.y = element_blank(), 
+    axis.title.y.right = element_text(size = 16, color = "grey60", 
+                                      face = "bold", margin = margin(l = 12)),
+    plot.margin = margin(r = 20),
+    panel.spacing.y = unit(.6, "lines"), 
+    strip.text = element_text(hjust = 0)
+  )
+
+p_control + p_pattern + plot_layout(widths = c(1, 4.3)) +
+  plot_annotation(#tag_levels = "a", tag_suffix = ")",
+                  title = "Relative area covered by AUD: 50%")
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_expected_50.pdf"), 
+       width = 15, height = 7, device = cairo_pdf)
+
+ggsave(here("plots", "fatalities", "png", "fatalities_correlation_expected_50.png"), 
+       width = 15, height = 7, dpi = 800)
+```
+
+
+*for all scenarios*
+
+```{r plots-fatalities-passes-monitored-all, fig.width=19, fig.height=11.5}
+## with variation
+## fixed x-scale
+scenarios %>% 
+  filter(prop_monitored != .04) %>% 
+  mutate(n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  facet_grid(prop_monitored_lab  ~ distribution) +
+  scale_x_continuous(limits = c(0, NA), breaks = 0:5*4000) +
+  scale_y_continuous(sec.axis = dup_axis(name = "Proportion covered by AUD", 
+                                         breaks = NULL, labels = NULL)) +
+  labs(x = "Number of bat passes (predicted)",
+       y = "Number of fatalities") +
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.spacing.y = unit(.65, "lines"), 
+    strip.text.x = element_text(size = 11, hjust = 0),
+    strip.text.y = element_text(size = 12.5),
+    axis.text = element_text(size = 10),
+    axis.title.y.right = element_text(size = 16, color = "grey50", face = "bold", margin = margin(l = 12))
+  )
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_monitored_var_all.pdf"), width = 19, height = 11.5, device = cairo_pdf)
+
+ggsave(here("plots", "fatalities", "png", "fatalities_correlation_monitored_var_all.png"), width = 19, height = 11.5, dpi = 800)
+
+
+
+## without variation
+scenarios %>% 
+  filter(prop_monitored != .04) %>% 
+  mutate(
+    n_fatalities = round(n / 100),
+    n_expected = ifelse(n_monitored == 0, 0, n_monitored / prop_monitored)
+  ) %>% 
+  ggplot(aes(n_expected, n_fatalities)) +
+  geom_abline(intercept = 0, slope = .01, color = "grey45", linetype = "31", size = .4) +
+  geom_point(shape = 16, alpha = .08) +
+  geom_quantile(quantiles = c(0.25, 0.75), color = "#D89684", size = .6) +
+  geom_quantile(quantiles = c(0.5), color = "#E60000", size = .9) +
+  facet_grid(prop_monitored_lab  ~ distribution) +
+  scale_x_continuous(limits = c(0, NA), breaks = 0:5*4000) +
+  scale_y_continuous(sec.axis = dup_axis(name = "Proportion covered by AUD", breaks = NULL, labels = NULL)) +
+  labs(x = "Number of bat passes (predicted)",
+       y = "Number of fatalities") +
+  theme(
+    panel.grid.major.y = element_blank(), 
+    panel.spacing.y = unit(.65, "lines"), 
+    strip.text.x = element_text(size = 11, hjust = 0),
+    strip.text.y = element_text(size = 12.5),
+    axis.text = element_text(size = 10),
+    axis.title.y.right = element_text(size = 16, color = "grey50", face = "bold", margin = margin(l = 12))
+  )
+
+ggsave(here("plots", "fatalities", "fatalities_correlation_monitored_fix_all.pdf"), width = 19, height = 11.5, device = cairo_pdf)
+
+ggsave(here("plots", "fatalities", "png", "fatalities_correlation_monitored_fix_all.png"), width = 19, height = 11.5, dpi = 800)
+```
+
+
+***
+
+<details><summary>Session Info</summary>
+
+```{r sessionInfo}
+Sys.time()
+sessionInfo()
+```
+
+</details>
