@@ -39,11 +39,12 @@ library(colorspace)
 library(here)
 library(patchwork)
 
-theme_set(theme_void(base_size = 18, base_family = "Open Sans"))
+theme_set(theme_void(base_size = 20, base_family = "Open Sans"))
 theme_update(
-  plot.title = element_markdown(hjust = .5, face = "bold", size = 26),
+  plot.title = element_markdown(hjust = .5, face = "bold", size = 30),
   plot.title.position = "plot",
-  plot.margin = margin(rep(10, 4))
+  plot.margin = margin(rep(10, 4)),
+  plot.background = element_rect(fill = "white", color = "white")
 )
 
 ## source funcrions to generate distributions of bat passes
@@ -181,7 +182,7 @@ df_top3 <- generate_distribution(distribution = "top",     prop_monitored = m, n
 ```
 
 
-```{r plots-distributions-rotor, fig.width=20, fig.height=11}
+```{r plots-distributions-rotor, fig.width=24, fig.height=12.5}
 gg_uni_r  <- plot_dist(df_uni,  title = "a) uniform")
 gg_ran_r  <- plot_dist(df_ran,  title = "b) random")
 gg_inn1_r <- plot_dist(df_inn1, title = "c) inner — weak")
@@ -198,8 +199,7 @@ p_r <- (gg_uni_r | gg_inn1_r | gg_out1_r | gg_bot1_r | gg_top1_r) / (gg_ran_r | 
 
 p_r
 
-ggsave(here("plots", "fig1_distributions_all_rotor.pdf"), width = 24, height = 11, device = cairo_pdf)
-ggsave(here("plots", "fig1_distributions_all_rotor.png"), width = 24, height = 11, dpi = 800)
+ggsave(here("plots", "fig1_distributions_all_rotor.png"), width = 24, height = 12.5, dpi = 800)
 
 ## portrait-format
 # p_r_l <- 
@@ -207,11 +207,11 @@ ggsave(here("plots", "fig1_distributions_all_rotor.png"), width = 24, height = 1
 #              gg_out3_r, gg_bot1_r, gg_bot3_r, gg_top1_r, gg_top3_r, ncol = 2) * 
 #   theme(plot.margin = margin(5, 40, 5, 40))
 # 
-# ggsave(here("plots", "distributions", "distributions_all_rotor_long.pdf"), width = 12, height = 24, device = cairo_pdf)
+# ggsave(here("plots", "distributions", "distributions_all_rotor_long.png"), width = 12, height = 24, dpi = 800)
 ```
 
 
-```{r plots-distributions-monitoring, fig.width=20, fig.height=11}
+```{r plots-distributions-monitoring, fig.width=24, fig.height=12.5}
 gg_uni_m  <- plot_dist(df_uni,  color = "orange2", title = "a) uniform")
 gg_ran_m  <- plot_dist(df_ran,  color = "orange2", title = "b) random")
 gg_inn1_m <- plot_dist(df_inn1, color = "orange2", title = "c) inner — weak")
@@ -228,11 +228,11 @@ p_m <- (gg_uni_m | gg_inn1_m | gg_out1_m | gg_bot1_m | gg_top1_m) / (gg_ran_m | 
 
 p_m
 
-ggsave(here("plots", "distributions", "distributions_all_monitored.pdf"), width = 24, height = 11, device = cairo_pdf)
+ggsave(here("plots", "distributions", "distributions_all_monitored.png"), width = 24, height = 12.5, dpi = 800)
 ```
 
 
-```{r plots-distributions-fatalities, fig.width=20, fig.height=11}
+```{r plots-distributions-fatalities, fig.width=24, fig.height=12.5}
 gg_uni_f  <- plot_dist(df_uni,  color = "orange2", shape = 4, title = "a) uniform")
 gg_ran_f  <- plot_dist(df_ran,  color = "orange2", shape = 4, title = "b) random")
 gg_inn1_f <- plot_dist(df_inn1, color = "orange2", shape = 4, title = "c) inner — weak")
@@ -249,7 +249,7 @@ p_f <- (gg_uni_f | gg_inn1_f | gg_out1_f | gg_bot1_f | gg_top1_f) / (gg_ran_f | 
 
 p_f
 
-ggsave(here("plots", "distributions", "distributions_all_fatalities.pdf"), width = 24, height = 11, device = cairo_pdf)
+ggsave(here("plots", "distributions", "distributions_all_fatalities.png"), width = 24, height = 12.5, dpi = 800)
 ```
 
 
@@ -260,6 +260,8 @@ ggsave(here("plots", "distributions", "distributions_all_fatalities.pdf"), width
 seed <- 123L
 distribution <- "inner"
 color <- "orange2"
+
+theme_update(plot.title = element_markdown(size = 20))
 ```
 
 
@@ -274,13 +276,13 @@ low_30 <- .5
 df_30_low <- generate_distribution(n = small, prop_monitored = low_30, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
 
 (gg_d_30_low  <- plot_dist(df_30_low, size = 2, title = "30m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_rotor.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_m_30_low <- plot_dist(df_30_low, size = 2, color = color, title = "30m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_monitored.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_f_30_low <- plot_dist(df_30_low, color = color, shape = 4, title = "30m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_low_freq_fatalities.png")), width = 5, height = 5.2, dpi = 800)
 ```
 
 
@@ -294,13 +296,13 @@ high_30 <- .17
 df_30_high <- generate_distribution(n = small, prop_monitored = high_30, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
 
 (gg_d_30_high <- plot_dist(df_30_high, size = 2, title = "30m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_rotor.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_m_30_high <- plot_dist(df_30_high, size = 2, color = color, title = "30m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_monitored.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_f_30_high <- plot_dist(df_30_high, color = color, shape = 4, title = "30m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_30m_high_freq_fatalities.png")), width = 5, height = 5.2, dpi = 800)
 ```
 
 
@@ -315,13 +317,13 @@ low_60 <- .23
 df_60_low <- generate_distribution(n = large, prop_monitored = low_60, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
 
 (gg_d_60_low <- plot_dist(df_60_low, size = 2, title = "60m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_rotor.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_m_60_low <- plot_dist(df_60_low, size = 2, color = color, title = "60m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_monitored.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_f_60_low <- plot_dist(df_60_low, color = color, shape = 4, title = "60m radius + low-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_low_freq_fatalities.png")), width = 5, height = 5.2, dpi = 800)
 ```
 
 
@@ -335,13 +337,13 @@ high_60 <- .04
 df_60_high <- generate_distribution(n = large, prop_monitored = high_60, distribution = distribution, seed = seed, var = FALSE, skewness = 2)
 
 (gg_d_60_high <- plot_dist(df_60_high, size = 2, title = "60m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_rotor.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_rotor.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_m_60_high <- plot_dist(df_60_high, size = 2, color = color, title = "60m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_monitored.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_monitored.png")), width = 5, height = 5.2, dpi = 800)
 
 (gg_f_60_high <- plot_dist(df_60_high, color = color, shape = 4, title = "60m radius + high-frequency"))
-ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_fatalities.pdf")), width = 5, height = 5.2, device = cairo_pdf)
+ggsave(here("plots", "distributions", paste0("distribution_example_", distribution, "_60m_high_freq_fatalities.png")), width = 5, height = 5.2, dpi = 800)
 ```
 
 
@@ -366,37 +368,22 @@ n <- length(skewness_levels)
 ## inner > outer 
 plots_inner <- purrr::map2(rep("inner",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))  ## c(1, 3, 5, 7, 9, 15, 30, 60)
 wrap_plots(plots_inner, ncol = 4) + plot_annotation(title = "Inner > Outer")
-ggsave(here::here("plots", "distributions", "distributions_gradient_inner.pdf"), width = 12, height = 7, device = cairo_pdf)
+ggsave(here::here("plots", "distributions", "distributions_gradient_inner.png"), width = 12, height = 7, dpi = 800)
 
 ## outer > inner
 plots_outer <- purrr::map2(rep("outer",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
 wrap_plots(plots_outer, ncol = 4) + plot_annotation(title = "Outer > Inner")
-ggsave(here::here("plots", "distributions", "distributions_gradient_outer.pdf"), width = 12, height = 7, device = cairo_pdf)
+ggsave(here::here("plots", "distributions", "distributions_gradient_outer.png"), width = 12, height = 7, dpi = 800)
 
 ## top > bottom
 plots_top <- purrr::map2(rep("top",  n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
 wrap_plots(plots_top, ncol = 4) + plot_annotation(title = "Top > Bottom")
-ggsave(here::here("plots", "distributions", "distributions_gradient_top.pdf"), width = 12, height = 7, device = cairo_pdf)
+ggsave(here::here("plots", "distributions", "distributions_gradient_top.png"), width = 12, height = 7, dpi = 800)
 
 ## bottom > top
 plots_bottom <- purrr::map2(rep("bottom", n), skewness_levels, ~plot_skewed(dist = .x, skewness = .y))
 wrap_plots(plots_bottom, ncol = 4) + plot_annotation(title = "Bottom > Top")
-ggsave(here::here("plots", "distributions", "distributions_gradient_bottom.pdf"), width = 12, height = 7, device = cairo_pdf)
-```
-
-
-
-```{r convert-pdf, include = FALSE}
-## convert PDFs to PNGs
-path <- here("plots", "distributions")
-pdfs <- list.files(path, pattern = ".*pdf")
-for(pdf in pdfs) {
-  pdftools::pdf_convert(
-    pdf = glue::glue("{path}/{pdf}"), 
-    filenames = glue::glue("{path}/png/{str_remove(pdf, '.pdf')}.png"),
-    format = "png", dpi = 700
-  )
-}
+ggsave(here::here("plots", "distributions", "distributions_gradient_bottom.png"), width = 12, height = 7, dpi = 800)
 ```
 
 

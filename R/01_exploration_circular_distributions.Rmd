@@ -35,6 +35,7 @@ library(tidyverse)
 library(ggtext)
 library(spatstat.core)
 library(patchwork)
+library(here)
 
 theme_set(theme_light(base_size = 10, base_family = "Open Sans"))
 theme_update(
@@ -112,7 +113,7 @@ n <- 500
 
 ```{r point-pattern-generation}
 ## source sunflower function for uniform distributions
-source(here::here("R", "src", "generate-distributions.R"))
+source(here("R", "src", "generate-distributions.R"))
 
 ## fix random number genreration to ensure reproducibility
 set.seed(12345)
@@ -231,7 +232,7 @@ gg_btm10_nc <- plot_dist(df_btm10, "**Bottom to Top** (exp(-10*y))", color = FAL
 ## panel
 (gg_sunf_nc | gg_btm2_nc | gg_inn_nc) / (gg_rand_nc | gg_btm5_nc | gg_out_nc)
 
-ggsave(here::here("plots", "circular_distributions_nc.png"), width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_nc.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -269,7 +270,7 @@ gg_btm10 <- plot_dist(df_btm10, "**Bottom to Top** (exp(-10*y))")
 ## panel
 (gg_sunf | gg_btm2 | gg_inn) / (gg_rand | gg_btm5 | gg_out)
 
-ggsave("plots/circular_distributions.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -280,7 +281,7 @@ ggsave("plots/circular_distributions.png", width = 15, height = 10, dpi = 700)
 ## panel bottom > top
 (gg_btm1_nc | gg_btm2_nc | gg_btm3_nc | gg_btm4_nc | gg_btm5_nc) / (gg_btm6_nc | gg_btm7_nc | gg_btm8_nc | gg_btm9_nc | gg_btm10_nc)
 
-ggsave("plots/circular_distributions_btms_nc.png", width = 24, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_btms_nc.png"), width = 24, height = 10, dpi = 800)
 ```
 
 
@@ -290,7 +291,7 @@ ggsave("plots/circular_distributions_btms_nc.png", width = 24, height = 10, dpi 
 ## panel bottom > top
 (gg_btm1 | gg_btm2 | gg_btm3 | gg_btm4 | gg_btm5) / (gg_btm6 | gg_btm7 | gg_btm8 | gg_btm9 | gg_btm10)
 
-ggsave("plots/circular_distributions_btms.png", width = 24, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_btms.png"), width = 24, height = 10, dpi = 800)
 ```
 
 
@@ -371,7 +372,7 @@ plot_monitoring_all <- function(proportion_covered, df_rand, df_sunf, df_inn, df
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .5, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_50.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_50.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -381,7 +382,7 @@ ggsave("plots/circular_distributions_area_monitored_50.png", width = 15, height 
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .4, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_40.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_40.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -391,7 +392,7 @@ ggsave("plots/circular_distributions_area_monitored_40.png", width = 15, height 
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .3, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_30.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_30.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -401,7 +402,7 @@ ggsave("plots/circular_distributions_area_monitored_30.png", width = 15, height 
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .2, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_20.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_20.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -411,7 +412,7 @@ ggsave("plots/circular_distributions_area_monitored_20.png", width = 15, height 
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .1, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_10.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_10.png"), width = 15, height = 10, dpi = 800)
 ```
 
 
@@ -421,7 +422,7 @@ ggsave("plots/circular_distributions_area_monitored_10.png", width = 15, height 
 (panel_monitored <- plot_monitoring_all(
   proportion_covered = .05, df_rand, df_sunf, df_inn, df_out, df_btm_2, df_btm_5
 ))
-ggsave("plots/circular_distributions_area_monitored_05.png", width = 15, height = 10, dpi = 700)
+ggsave(here("plots", "distributions", "circular_distributions_area_monitored_05.png"), width = 15, height = 10, dpi = 800)
 ```
 
 ***

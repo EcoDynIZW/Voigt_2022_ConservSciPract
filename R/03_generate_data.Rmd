@@ -144,7 +144,7 @@ fits_scenarios <-
   )
 ```
 
-```{r}
+```{r plot-fittings}
 ## R-squared -------------------------------------------------------------------
 ggplot(fits_scenarios, aes(factor(prop_monitored), fct_rev(distribution), fill = rsq)) +
   geom_tile() +
@@ -188,7 +188,7 @@ ggplot(fits_scenarios, aes(factor(prop_monitored), fct_rev(distribution), fill =
 
 ### Fitting per Distribution x Prop Monitored x Bat Passes
 
-```{r fittings}
+```{r fittings-2}
 lm_scenarios_n <- 
   scenarios %>% 
   ## remove extremely skewed distributions
@@ -213,7 +213,7 @@ fits_scenarios_n <-
   )
 ```
 
-```{r}
+```{r plot-fittings-2}
 ## R-squared -------------------------------------------------------------------
 ggplot(fits_scenarios_n, aes(factor(prop_monitored), fct_rev(factor(n)), fill = rsq)) +
   geom_tile() +
