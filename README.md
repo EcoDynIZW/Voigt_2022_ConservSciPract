@@ -1,7 +1,7 @@
 
 ## Modelling the Predictive Power of Acoustic Monitoring
 
-Research question: 
+### Research question
 
 > Is the predictive power of the current acoustic monitoring sufficient enough to estimate the true number of killed bats?
 
